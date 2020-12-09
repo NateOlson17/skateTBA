@@ -1,58 +1,66 @@
-import React from 'react';
-import MapView from 'react-native-maps';
-import { StyleSheet, Text, View, Dimensions } from 'react-native';
-import * as Location from 'expo-location';
-import * as Permissions from 'expo-permissions';
+import React, { Component } from "react"; //importing necessary libraries
+import { StyleSheet, View } from "react-native";
+import MapView from "react-native-maps";
+import * as Location from "expo-location";
+import * as Permissions from "expo-permissions";
 
-export default class App extends React.Component {
+export default class App extends Component {
   constructor(props) {
     super(props);
-    this.state = { //state set
-      locationResult: null, //location result holds either location object converted to string or error message as string 
-      locationStatus: null, //holds success status of location grab
-      initLat_s: 0, //holds initial latitude and longitude of user location
-      initLon_s: 0
-    }; 
+    this.state = {
+      regionState: null, //carries region lat/lon and corresponding deltas
+      didMount: false //tracks component mount status for processes to eliminate memory leakage
+    };
   }
-  
-  componentDidMount() {this._getLocationAsync();} //if component mounts, run location grabber
-    
-  _getLocationAsync = async () => { //location grabber
-    const { status, permissions } = await Permissions.askAsync(Permissions.LOCATION); //ask for location perms
-    if (status !== "granted") { //if location perms denied, set locationResult accordingly
-      console.log("location perms denied");
-      this.setState({locationResult: "Permission to access location was denied"});
-      this.setState({locationStatus: false});
-    } else {
-      console.log("location perms granted");
-      let initLocation = await Location.getCurrentPositionAsync({ enableHighAccuracy: true }); //otherwise, save location object in "location" var
-      this.setState({locationResult: JSON.stringify(initLocation)}); //set locationResult to string representation of location
-      console.log("stringified locationResult:");
-      console.log(this.state.locationResult);
-      this.setState({locationStatus: true});
 
-      let initLat = initLocation.coords.latitude; //gather lat/lon from location object
-      let initLon = initLocation.coords.longitude;
-      this.setState({initLat_s: initLat}); //set lat/lon in state accordingly
-      this.setState({initLon_s: initLon});
-      console.log("lat:");
-      console.log(this.state.initLat_s);
-      console.log("lon:");
-      console.log(this.state.initLon_s);
-    }
+  _getLocationAsync = async () => { //location grabber func, operates as a background process (asynchronously)
+    this.location = await Location.watchPositionAsync(
+      {
+        enableHighAccuracy: true,
+        distanceInterval: .1, //units of degrees lat/lon
+        timeInterval: 100 //updates location every 100ms
+      },
+
+      newLocation => { //update location
+        let { coords } = newLocation; //save new location found
+        let region = {
+          latitude: coords.latitude, //rip lat and lon from newLocation var stored in coords
+          longitude: coords.longitude,
+          latitudeDelta: 0.01, //establish deltas
+          longitudeDelta: 0.01
+        };
+        this.setState({regionState: region}); //push region updates to state struct
+      },
+    );
+    if (!this.state.didMount) {return;} //if component is unmounted, return to avoid tracking location for a defunct process
+    return this.location; //otherwise, continue to return new locations every 100ms
   };
+
+  async componentDidMount() { //when component is mounted
+    this.state.didMount = true; //update state var
+    const {status} = await Permissions.askAsync(Permissions.LOCATION); //prompt for location perms
+
+    if (status === "granted") { //verify user response, then begin asynchronous tracking
+      this._getLocationAsync();
+      console.log("location perms granted");
+    } else {
+      console.log("location perms denied");
+    }
+  }
+
+  async componentWillUnmount() {
+    this.state.didMount = false; //update state (checked for in _getLocationAsync)
+  }
 
   render() {
     return (
       <View style={styles.container}>
-        <MapView 
-          style={styles.mapStyle}
-          region = {{
-            latitude: this.state.initLat_s,
-            longitude: this.state.initLon_s,
-            latitudeDelta: .01,
-            longitudeDelta: .01 
-          }}
+        <MapView
+          initialRegion = {this.state.regionState}
+          showsCompass = {true}
+          showsUserLocation = {true}
+          rotateEnabled = {true}
+          style = {{flex: 1}}
         />
       </View>
     );
@@ -62,12 +70,6 @@ export default class App extends React.Component {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mapStyle: {
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height,
-  },
+    backgroundColor: "#fff"
+  }
 });
