@@ -1,15 +1,21 @@
 import React, { Component } from "react"; //importing necessary libraries
-import { StyleSheet, View } from "react-native";
-import MapView from "react-native-maps";
+import { StyleSheet, View, Image, TouchableOpacity } from "react-native";
+import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import * as Permissions from "expo-permissions";
+import { Dimensions } from 'react-native';
 
 export default class App extends Component {
+  
   constructor(props) {
     super(props);
     this.state = {
+      APP_WIDTH: Dimensions.get('window').width,
+      APP_HEIGHT: Dimensions.get('window').height,
+      plusIconDimensions: 144, //height/width of the plus icon in pixels
       regionState: null, //carries region lat/lon and corresponding deltas
-      didMount: false //tracks component mount status for processes to eliminate memory leakage
+      didMount: false, //tracks component mount status for processes to eliminate memory leakage
+      darkModeEnabled: true
     };
   }
 
@@ -52,16 +58,129 @@ export default class App extends Component {
     this.state.didMount = false; //update state (checked for in _getLocationAsync)
   }
 
+  initiate_addPOI = () => {
+    console.log("adding POI")
+  }
+
   render() {
+      let markerCond = <Marker //marker condition - checked using ternary expression in render()->return() - displayed if regionState defined
+                            coordinate = {this.state.regionState}
+                            image = {require('./src/components/board.png')}
+                            flat = {true}
+                        />
+      let defaultMapStyle = []
+      let darkMapStyle = [
+        {
+          "elementType": "geometry",
+          "stylers": [{"color": "#242f3e"}]
+        },
+        {
+          "elementType": "labels.text.fill",
+          "stylers": [{"color": "#746855"}]
+        },
+        {
+          "elementType": "labels.text.stroke",
+          "stylers": [{"color": "#242f3e"}]
+        },
+        {
+          "featureType": "administrative.locality",
+          "elementType": "labels.text.fill",
+          "stylers": [{"color": "#d59563"}]
+        },
+        {
+          "featureType": "poi",
+          "elementType": "labels.text.fill",
+          "stylers": [{"color": "#d59563"}]
+        },
+        {
+          "featureType": "poi.park",
+          "elementType": "geometry",
+          "stylers": [{"color": "#263c3f"}]
+        },
+        {
+          "featureType": "poi.park",
+          "elementType": "labels.text.fill",
+          "stylers": [{"color": "#6b9a76"}]
+        },
+        {
+          "featureType": "road",
+          "elementType": "geometry",
+          "stylers": [{"color": "#38414e"}]
+        },
+        {
+          "featureType": "road",
+          "elementType": "geometry.stroke",
+          "stylers": [{"color": "#212a37"}]
+        },
+        {
+          "featureType": "road",
+          "elementType": "labels.text.fill",
+          "stylers": [{"color": "#9ca5b3"}]
+        },
+        {
+          "featureType": "road.highway",
+          "elementType": "geometry",
+          "stylers": [{"color": "#746855"}]
+        },
+        {
+          "featureType": "road.highway",
+          "elementType": "geometry.stroke",
+          "stylers": [{"color": "#1f2835"}]
+        },
+        {
+          "featureType": "road.highway",
+          "elementType": "labels.text.fill",
+          "stylers": [{"color": "#f3d19c"}]
+        },
+        {
+          "featureType": "transit",
+          "elementType": "geometry",
+          "stylers": [{"color": "#2f3948"}]
+        },
+        {
+          "featureType": "transit.station",
+          "elementType": "labels.text.fill",
+          "stylers": [{"color": "#d59563"}]
+        },
+        {
+          "featureType": "water",
+          "elementType": "geometry",
+          "stylers": [{"color": "#17263c"}]
+        },
+        {
+          "featureType": "water",
+          "elementType": "labels.text.fill",
+          "stylers": [{"color": "#515c6d"}]
+        },
+        {
+          "featureType": "water",
+          "elementType": "labels.text.stroke",
+          "stylers": [{"color": "#17263c"}]
+        }
+      ]
     return (
       <View style={styles.container}>
+
         <MapView
           initialRegion = {this.state.regionState}
-          showsCompass = {true}
-          showsUserLocation = {true}
-          rotateEnabled = {true}
+          //showsUserLocation = {true}
           style = {{flex: 1}}
-        />
+          customMapStyle = {this.state.darkModeEnabled ? darkMapStyle : defaultMapStyle}
+        >
+          {this.state.regionState ? markerCond : null /*conditionally render the markerCond dependent upon the definition status of regionState*/}
+        </MapView>
+
+        <TouchableOpacity onPress = {this.initiate_addPOI}>
+          <Image  //"add POI" button
+            style = {{
+              position: 'absolute', //positioned absolutely to play nice with map
+              bottom: .04  * this.state.APP_HEIGHT,
+              left: (this.state.APP_WIDTH - this.state.plusIconDimensions)/2
+            }}
+            source = {require('./src/components/plus.png')}
+          />
+        </TouchableOpacity>
+
       </View>
     );
   }
