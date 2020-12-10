@@ -13,9 +13,10 @@ export default class App extends Component {
       APP_WIDTH: Dimensions.get('window').width,
       APP_HEIGHT: Dimensions.get('window').height,
       plusIconDimensions: 144, //height/width of the plus icon in pixels
+      darkModeIconDimensions: 57,
       regionState: null, //carries region lat/lon and corresponding deltas
       didMount: false, //tracks component mount status for processes to eliminate memory leakage
-      darkModeEnabled: true
+      darkModeEnabled: false
     };
   }
 
@@ -62,13 +63,23 @@ export default class App extends Component {
     console.log("adding POI")
   }
 
+  darkModeSwitch = () => {
+    if (this.state.darkModeEnabled) {
+      console.log("setting dm to false");
+      this.state.darkModeEnabled = false;
+    } else {
+      console.log("setting dm to true");
+      this.state.darkModeEnabled = true;
+    }
+  }
+
   render() {
       let markerCond = <Marker //marker condition - checked using ternary expression in render()->return() - displayed if regionState defined
                             coordinate = {this.state.regionState}
                             image = {require('./src/components/board.png')}
                             flat = {true}
                         />
-      let defaultMapStyle = []
+      let defaultMapStyle = [] //////////////////////////////////CREATING MAP STYLES////////////////////////////////////////
       let darkMapStyle = [
         {
           "elementType": "geometry",
@@ -162,10 +173,13 @@ export default class App extends Component {
       <View style={styles.container}>
 
         <MapView
+          provider={MapView.PROVIDER_GOOGLE}
           initialRegion = {this.state.regionState}
-          //showsUserLocation = {true}
+          zoomEnabled
+          zoomTapEnabled
+          showsCompass
           style = {{flex: 1}}
-          customMapStyle = {this.state.darkModeEnabled ? darkMapStyle : defaultMapStyle}
+          customMapStyle = {this.state.darkModeEnabled ? darkMapStyle : defaultMapStyle} //////////////TERNARY TO DETERMINE MAP STYLE/////////////
         >
           {this.state.regionState ? markerCond : null /*conditionally render the markerCond dependent upon the definition status of regionState*/}
         </MapView>
@@ -177,7 +191,18 @@ export default class App extends Component {
               bottom: .04  * this.state.APP_HEIGHT,
               left: (this.state.APP_WIDTH - this.state.plusIconDimensions)/2
             }}
-            source = {require('./src/components/plus.png')}
+            source = {this.state.darkModeEnabled ? require('./src/components/dmplus.png') : require('./src/components/plus.png')}
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress = {this.darkModeSwitch}>
+          <Image  //"mode" button
+            style = {{
+              position: 'absolute', //positioned absolutely to play nice with map
+              bottom: .045  * this.state.APP_HEIGHT,
+              left: (this.state.APP_WIDTH - this.state.darkModeIconDimensions)/2 + .25 * this.state.APP_WIDTH
+            }}
+            source = {this.state.darkModeEnabled ? require('./src/components/lm.png') : require('./src/components/dm.png')}
           />
         </TouchableOpacity>
 
