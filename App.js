@@ -1,5 +1,5 @@
 import React, { Component } from "react"; //importing necessary libraries
-import { StyleSheet, View, Image, TouchableOpacity } from "react-native";
+import { StyleSheet, View, Image, TouchableOpacity, Text } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import * as Permissions from "expo-permissions";
@@ -170,10 +170,13 @@ export default class App extends Component {
         }
       ]
     return (
-      <View style={styles.container}>
+      <View style = {styles.container}>
+
+        <View style = {this.state.darkModeEnabled ? styles.dmheader : styles.header}>
+        </View>
 
         <MapView
-          provider={MapView.PROVIDER_GOOGLE}
+          provider = {MapView.PROVIDER_GOOGLE}
           initialRegion = {this.state.regionState}
           zoomEnabled
           zoomTapEnabled
@@ -200,7 +203,7 @@ export default class App extends Component {
             style = {{
               position: 'absolute', //positioned absolutely to play nice with map
               bottom: .045  * this.state.APP_HEIGHT,
-              left: (this.state.APP_WIDTH - this.state.darkModeIconDimensions)/2 + .25 * this.state.APP_WIDTH
+              left: (this.state.APP_WIDTH - this.state.darkModeIconDimensions) / 2 + .25 * this.state.APP_WIDTH
             }}
             source = {this.state.darkModeEnabled ? require('./src/components/lm.png') : require('./src/components/dm.png')}
           />
@@ -212,8 +215,19 @@ export default class App extends Component {
 }
 
 const styles = StyleSheet.create({
+  
   container: {
     flex: 1,
     backgroundColor: "#fff"
+  },
+
+  header: {
+    flex: .15,
+    backgroundColor: "#013"
+  },
+
+  dmheader: {
+    flex: .15,
+    backgroundColor: "#ffe"
   }
 });
