@@ -12,11 +12,13 @@ export default class App extends Component {
     this.state = {
       APP_WIDTH: Dimensions.get('window').width,
       APP_HEIGHT: Dimensions.get('window').height,
-      plusIconDimensions: 144, //height/width of the plus icon in pixels - initialized later - this is fallback value
-      darkModeIconDimensions: 57,
+      plusIconDimensions: 14400, //height/width of the plus icon in pixels - initialized later - this is fallback value
+      darkModeIconDimensions: 5700,
+      POImenuDimensions: 35000,
       regionState: null, //carries region lat/lon and corresponding deltas
       didMount: false, //tracks component mount status for processes to eliminate memory leakage
-      darkModeEnabled: false
+      darkModeEnabled: false,
+      displayPOImenu: false
     };
   }
 
@@ -49,33 +51,26 @@ export default class App extends Component {
 
     if (status === "granted") { //verify user response, then begin asynchronous tracking
       this._getLocationAsync();
-      console.log("location perms granted");
-    } else {
-      console.log("location perms denied");
+      console.log("location perms ", status);
     }
   }
 
-  async componentWillUnmount() {
-    this.state.didMount = false; //update state (checked for in _getLocationAsync)
-  }
+  async componentWillUnmount() {this.state.didMount = false;} //update state (checked for in _getLocationAsync)
 
   initiate_addPOI = () => { //when "add POI" button is pressed, triggers this function
-    console.log("adding POI")
+    console.log("setting POI to ", !this.state.displayPOImenu);
+    this.state.displayPOImenu = !this.state.displayPOImenu;
   }
 
-  darkModeSwitch = () => { //enable dark mode if disabled, and vice versa, called when mode button presse
-    if (this.state.darkModeEnabled) {
-      console.log("setting dm to false");
-      this.state.darkModeEnabled = false;
-    } else {
-      console.log("setting dm to true");
-      this.state.darkModeEnabled = true;
-    }
+  darkModeSwitch = () => { //enable dark mode if disabled, and vice versa, called when mode button pressed
+    console.log("setting dm to ", !this.state.darkModeEnabled);
+    this.state.darkModeEnabled = !this.state.darkModeEnabled;
   }
 
   render() {
     this.state.plusIconDimensions = this.state.APP_WIDTH * .3; //calculate icon dimensions based on app dimensions
     this.state.darkModeIconDimensions = this.state.APP_WIDTH * .15;
+    this.state.POImenuDimensions = this.state.APP_WIDTH * .8;
     let markerCond = null;
     if (this.state.regionState) {
       markerCond = <Marker //marker condition - checked using ternary expression in render()->return() - displayed if regionState defined
@@ -83,6 +78,20 @@ export default class App extends Component {
                             image = {require('./src/components/board.png')}
                             flat = {true}
                         />
+    }
+    let POIcond = null;
+    if (this.state.displayPOImenu) { //set POI menu to render only if state variable allows
+      POIcond = <Image
+                  style = {{
+                            position: 'absolute',
+                            bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions,
+                            left: (this.state.APP_WIDTH - this.state.POImenuDimensions)/2,
+                            width: this.state.POImenuDimensions,
+                            height: .5 * this.state.APP_HEIGHT,
+                            resizeMode: 'contain'
+                          }}
+                  source = {require('./src/components/POI_menu.png')}
+                />
     }
     let defaultMapStyle = [] //generate map styles (stored locally)
     let darkMapStyle = [
@@ -177,7 +186,7 @@ export default class App extends Component {
     return (
       <View style = {styles.container}>
 
-        <View style = {this.state.darkModeEnabled ? styles.dmheader : styles.header}> 
+        <View style = {this.state.darkModeEnabled ? styles.dmheader : styles.header}>
         </View>
 
         <MapView
@@ -189,8 +198,10 @@ export default class App extends Component {
           style = {{flex: 1}} //fill parent
           customMapStyle = {this.state.darkModeEnabled ? darkMapStyle : defaultMapStyle} //ternary determines map style based on darkModeEnabled state
         >
-          {markerCond /*conditionally render the markerCond dependent upon the definition status of regionState*/}
+          {markerCond /*conditionally render markerCond dependent upon the definition status of regionState*/}
         </MapView>
+
+        {POIcond /*conditionally render POI menu*/}
 
         <TouchableOpacity onPress = {this.initiate_addPOI}>
           <Image  //"add POI" button
@@ -199,9 +210,14 @@ export default class App extends Component {
               bottom: .04  * this.state.APP_HEIGHT, //4% from bottom of screen
               left: (this.state.APP_WIDTH - this.state.plusIconDimensions)/2, //centered
               height: this.state.plusIconDimensions, //set using previously calculated icon dimensions
-              width: this.state.plusIconDimensions
+              width: this.state.plusIconDimensions,
+              resizeMode: 'contain'
             }}
-            source = {this.state.darkModeEnabled ? require('./src/components/dmplus.png') : require('./src/components/plus.png')} //ternary to determine icon based on dark mode
+            source = {this.state.darkModeEnabled ? 
+                        this.state.displayPOImenu ? require('./src/components/dmplus_x.png') : require('./src/components/dmplus.png')
+                        :
+                        this.state.displayPOImenu ? require('./src/components/plus_x.png') : require('./src/components/plus.png')
+                      } //ternary to determine icon based on dark mode and POI menu statuses
           />
         </TouchableOpacity>
 
@@ -212,7 +228,8 @@ export default class App extends Component {
               bottom: .04  * this.state.APP_HEIGHT, //4% from bottom of screen
               left: (this.state.APP_WIDTH - this.state.darkModeIconDimensions) / 2 + .25 * this.state.APP_WIDTH, //centered + 25% of width
               height: this.state.darkModeIconDimensions, //set using previously calculated icon dimensions
-              width: this.state.darkModeIconDimensions
+              width: this.state.darkModeIconDimensions,
+              resizeMode: 'contain'
             }}
             source = {this.state.darkModeEnabled ? require('./src/components/lm.png') : require('./src/components/dm.png')} //ternary identifies proper icon based on mode
           />
@@ -227,7 +244,7 @@ const styles = StyleSheet.create({
   
   container: {
     flex: 1,
-    backgroundColor: "#fff"
+    backgroundColor: "#000"
   },
 
   header: {
