@@ -6,6 +6,7 @@ import * as Permissions from "expo-permissions";
 import { Dimensions } from 'react-native';
 import Communications, { text } from 'react-native-communications';
 
+
 export default class App extends Component {
   
   constructor(props) {

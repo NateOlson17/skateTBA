@@ -8,18 +8,24 @@
     "eject": "expo eject"
   },
   "dependencies": {
+    "@react-native-firebase/app": "^10.2.0",
+    "@react-native-firebase/storage": "^10.2.0",
     "expo": "~39.0.2",
+    "expo-application": "~2.3.0",
     "expo-location": "~9.0.0",
     "expo-permissions": "~9.3.0",
     "expo-status-bar": "~1.0.2",
     "expo-task-manager": "~8.5.0",
+    "firebase": "^8.2.0",
     "react": "16.13.1",
     "react-dom": "16.13.1",
     "react-native": "https://github.com/expo/react-native/archive/sdk-39.0.4.tar.gz",
     "react-native-communications": "^2.2.1",
+    "react-native-image-picker": "^3.0.1",
     "react-native-location": "^2.5.0",
     "react-native-maps": "0.27.1",
     "react-native-permissions": "^3.0.0",
+    "react-native-progress": "^4.1.2",
     "react-native-web": "~0.13.12"
   },
   "devDependencies": {
