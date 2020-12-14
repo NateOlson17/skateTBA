@@ -5,7 +5,14 @@ import * as Location from "expo-location";
 import * as Permissions from "expo-permissions";
 import { Dimensions } from 'react-native';
 import Communications, { text } from 'react-native-communications';
+import { db } from './src/config';
 
+let addCoords = (lat, lon) => {
+  db.ref('/coords').push({
+    latitude: lat,
+    longitude: lon
+  });
+};
 
 export default class App extends Component {
   
@@ -63,6 +70,7 @@ export default class App extends Component {
   initiate_addPOI = () => { //when "add POI" button is pressed, triggers this function
     console.log("setting POI to ", !this.state.displayPOImenu);
     this.state.displayPOImenu = !this.state.displayPOImenu;
+    addCoords(this.state.regionState.latitude, this.state.regionState.longitude);
   }
 
   darkModeSwitch = () => { //enable dark mode if disabled, and vice versa, called when mode button pressed
@@ -73,6 +81,8 @@ export default class App extends Component {
   initBugReport = () => {
     text("17085574833", "Bug Report or Suggestion:\n");
   }
+
+  
 
   render() {
     this.state.plusIconDimensions = this.state.APP_WIDTH * .3; //calculate icon dimensions based on app dimensions
