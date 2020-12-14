@@ -6,6 +6,7 @@ import * as Permissions from "expo-permissions";
 import { Dimensions } from 'react-native';
 import { text } from 'react-native-communications';
 import { db } from './src/config';
+import { Slider } from 'react-native-range-slider-expo';
 
 //add states for currentPOI_skillLevel, currentPOI_photo, etc. set these to defaults when initiate_addPOI is called.
 //create sliders and such and store their data in these variables
@@ -37,16 +38,19 @@ export default class App extends Component {
       darkModeIconDimensions: 57,
       POImenuDimensions: 350,
       bugIconDimensions: 50,
+      posColor: '#6cccdc',
+      negColor: '#dc6c6c',
+      neutralColor: '#041c4b',
       regionState: null, //carries region lat/lon and corresponding deltas
       didMount: false, //tracks component mount status for processes to eliminate memory leakage
       darkModeEnabled: false,
       displayPOImenu: false,
-      pendingPOI_skillLevel: null,
+      pendingPOI_skillLevel: null, //null-define unentered POI states
       pendingPOI_accessibility: null,
       pendingPOI_image: null,
       pendingPOI_type: null,
-      pendingPOI_lat: null,
-      pendingPOI_lon: null
+      pendingPOI_condition: null,
+      pendingPOI_security: null
     };
   }
 
@@ -105,8 +109,6 @@ export default class App extends Component {
     text("17085574833", "Bug Report or Suggestion:\n");
   }
 
-  
-
   render() {
     this.state.plusIconDimensions = this.state.APP_WIDTH * .25; //calculate icon dimensions based on app dimensions
     this.state.darkModeIconDimensions = this.state.APP_WIDTH * .15;
@@ -121,6 +123,7 @@ export default class App extends Component {
                         />
     }
     let POIcond = null;
+    let POIcontent = null;
     if (this.state.displayPOImenu) { //set POI menu to render only if state variable allows
       POIcond = <Image
                   style = {{
@@ -133,7 +136,78 @@ export default class App extends Component {
                           }}
                   source = {require('./src/components/POI_menu.png')}
                 />
+      POIcontent =  <View
+                      style = {{
+                        position: 'absolute',
+                        bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions,
+                        left: (this.state.APP_WIDTH - this.state.POImenuDimensions)/2,
+                        width: this.state.POImenuDimensions,
+                        height: .5 * this.state.APP_HEIGHT,
+                        flexDirection:'row', flexWrap:'wrap'
+                      }}
+                    >
+
+                      <View //accessibility slider wrapper
+                        style = {{paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
+                      >
+                        <Slider min={0} max={10} step={1} //accessibility slider
+                          valueOnChange={value => {this.state.pendingPOI_accessibility = value}}
+                          initialValue={5}
+                          knobColor = {this.state.neutralColor}
+                          valueLabelsBackgroundColor = {this.state.neutralColor}
+                          inRangeBarColor = {this.state.negColor}
+                          outOfRangeBarColor = {this.state.posColor}
+                        />
+                        <Text style = {{alignSelf: 'center', fontWeight: 'bold'}}>Accessibility</Text>
+                      </View>
+
+                      <View //skillLevel slider wrapper
+                        style = {{paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
+                      >
+                        <Slider min={0} max={10} step={1} //skillLevel slider
+                          valueOnChange={value => {this.state.pendingPOI_skillLevel = value}}
+                          initialValue={5}
+                          knobColor = {this.state.neutralColor}
+                          valueLabelsBackgroundColor = {this.state.neutralColor}
+                          inRangeBarColor = {this.state.negColor}
+                          outOfRangeBarColor = {this.state.posColor}
+                        />
+                        <Text style = {{alignSelf: 'center', fontWeight: 'bold'}}>Skill Level</Text>
+                      </View>
+
+                      <View //security slider wrapper
+                        style = {{paddingBottom: this.state.APP_HEIGHT * .03, paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
+                      >
+                        <Slider min={0} max={10} step={1} //security slider
+                          valueOnChange={value => {this.state.pendingPOI_security = value}}
+                          initialValue={5}
+                          knobColor = {this.state.neutralColor}
+                          valueLabelsBackgroundColor = {this.state.neutralColor}
+                          inRangeBarColor = {this.state.negColor}
+                          outOfRangeBarColor = {this.state.posColor}
+                        />
+                        <Text style = {{alignSelf: 'center', fontWeight: 'bold'}}>Security</Text>
+                      </View>
+
+                      <View //condition slider wrapper
+                        style = {{paddingBottom: this.state.APP_HEIGHT * .03, paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
+                      >
+                        <Slider min={0} max={10} step={1} //condition slider
+                          valueOnChange={value => {this.state.pendingPOI_condition = value}}
+                          initialValue={5}
+                          knobColor = {this.state.neutralColor}
+                          valueLabelsBackgroundColor = {this.state.neutralColor}
+                          inRangeBarColor = {this.state.negColor}
+                          outOfRangeBarColor = {this.state.posColor}
+                        />
+                        <Text style = {{alignSelf: 'center', fontWeight: 'bold'}}>Condition</Text>
+                      </View>
+
+                      <Text style = {{alignSelf: 'center', fontWeight: 'bold', paddingLeft: this.state.POImenuDimensions * .05}}>Type:</Text>
+
+                    </View>
     }
+
     let defaultMapStyle = [] //generate map styles (stored locally)
     let darkMapStyle = [
       {
@@ -276,8 +350,9 @@ export default class App extends Component {
         >
           {markerCond /*conditionally render markerCond dependent upon the definition status of regionState*/}
         </MapView>
-
+        
         {POIcond /*conditionally render POI menu*/}
+        {POIcontent}
 
         <TouchableOpacity onPress = {this.initiate_addPOI}>
           <Image  //"add POI" button
@@ -320,19 +395,19 @@ const styles = StyleSheet.create({
   
   container: {
     flex: 1,
-    backgroundColor: "#000"
+    backgroundColor: "#fff"
   },
 
   header: {
     flex: .15,
-    backgroundColor: "#013",
+    backgroundColor: '#041c4b',
     justifyContent: 'flex-end',
     alignItems: 'flex-end'
   },
 
   dmheader: {
     flex: .15,
-    backgroundColor: "#ffe",
+    backgroundColor: '#fff',
     justifyContent: 'flex-end',
     alignItems: 'flex-end'
   }
