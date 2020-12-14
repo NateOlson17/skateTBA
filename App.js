@@ -4,6 +4,7 @@ import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import * as Permissions from "expo-permissions";
 import { Dimensions } from 'react-native';
+import Communications, { text } from 'react-native-communications';
 
 export default class App extends Component {
   
@@ -12,9 +13,10 @@ export default class App extends Component {
     this.state = {
       APP_WIDTH: Dimensions.get('window').width,
       APP_HEIGHT: Dimensions.get('window').height,
-      plusIconDimensions: 14400, //height/width of the plus icon in pixels - initialized later - this is fallback value
-      darkModeIconDimensions: 5700,
-      POImenuDimensions: 35000,
+      plusIconDimensions: 144, //height/width of the plus icon in pixels - initialized later - this is fallback value
+      darkModeIconDimensions: 57,
+      POImenuDimensions: 350,
+      bugIconDimensions: 50,
       regionState: null, //carries region lat/lon and corresponding deltas
       didMount: false, //tracks component mount status for processes to eliminate memory leakage
       darkModeEnabled: false,
@@ -67,10 +69,15 @@ export default class App extends Component {
     this.state.darkModeEnabled = !this.state.darkModeEnabled;
   }
 
+  initBugReport = () => {
+    text("17085574833", "Bug Report or Suggestion:\n");
+  }
+
   render() {
     this.state.plusIconDimensions = this.state.APP_WIDTH * .3; //calculate icon dimensions based on app dimensions
     this.state.darkModeIconDimensions = this.state.APP_WIDTH * .15;
     this.state.POImenuDimensions = this.state.APP_WIDTH * .8;
+    this.state.bugIconDimensions = this.state.APP_WIDTH * .1
     let markerCond = null;
     if (this.state.regionState) {
       markerCond = <Marker //marker condition - checked using ternary expression in render()->return() - displayed if regionState defined
@@ -187,6 +194,41 @@ export default class App extends Component {
       <View style = {styles.container}>
 
         <View style = {this.state.darkModeEnabled ? styles.dmheader : styles.header}>
+
+        <TouchableOpacity onPress = {this.initBugReport}>
+
+          <Image  //bug report button
+              style = {{
+                height: this.state.bugIconDimensions, //set using previously calculated icon dimensions
+                width: this.state.bugIconDimensions,
+                resizeMode: 'contain',
+                paddingRight: this.state.APP_WIDTH * .3
+              }}
+              source = {require('./src/components/reportbug.png')}
+            />
+
+            <Text //bug report text
+              style = {{
+                color: this.state.darkModeEnabled ? "#013" : "#ffe",
+                fontSize: 11,
+                paddingLeft: 13
+              }}
+            >
+              Give a Suggestion/
+            </Text>
+            <Text
+              style = {{
+                color: this.state.darkModeEnabled ? "#013" : "#ffe",
+                paddingLeft: 27,
+                paddingBottom: 10,
+                fontSize: 11
+              }}
+            >
+              Report a Bug
+            </Text>
+
+          </TouchableOpacity>
+
         </View>
 
         <MapView
@@ -249,11 +291,15 @@ const styles = StyleSheet.create({
 
   header: {
     flex: .15,
-    backgroundColor: "#013"
+    backgroundColor: "#013",
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end'
   },
 
   dmheader: {
     flex: .15,
-    backgroundColor: "#ffe"
+    backgroundColor: "#ffe",
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end'
   }
 });
