@@ -4,14 +4,26 @@ import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import * as Permissions from "expo-permissions";
 import { Dimensions } from 'react-native';
-import Communications, { text } from 'react-native-communications';
+import { text } from 'react-native-communications';
 import { db } from './src/config';
 
-let addCoords = (lat, lon) => {
-  db.ref('/coords').push({
-    latitude: lat,
-    longitude: lon
-  });
+//add states for currentPOI_skillLevel, currentPOI_photo, etc. set these to defaults when initiate_addPOI is called.
+//create sliders and such and store their data in these variables
+//when "submit" button activated, push the contents of these variables to RDB
+
+let pushPOIdata = (skillLevel, accessibility, image, type, lat, lon) => {
+  if (pendingPOI_skillLevel && pendingPOI_accessibility && pendingPOI_image && pendingPOI_type && pendingPOI_lat && pendingPOI_lon) { //verify definition of POI props
+    db.ref('/poi').push({ //push POI data to directory
+      skillLevel: skillLevel,
+      accessibility: accessibility,
+      image: image,
+      type: type,
+      lat: lat,
+      lon: lon
+    });
+  } else {
+    console.log("undefined POI prop");
+  }
 };
 
 export default class App extends Component {
@@ -28,7 +40,13 @@ export default class App extends Component {
       regionState: null, //carries region lat/lon and corresponding deltas
       didMount: false, //tracks component mount status for processes to eliminate memory leakage
       darkModeEnabled: false,
-      displayPOImenu: false
+      displayPOImenu: false,
+      pendingPOI_skillLevel: null,
+      pendingPOI_accessibility: null,
+      pendingPOI_image: null,
+      pendingPOI_type: null,
+      pendingPOI_lat: null,
+      pendingPOI_lon: null
     };
   }
 
@@ -69,8 +87,13 @@ export default class App extends Component {
 
   initiate_addPOI = () => { //when "add POI" button is pressed, triggers this function
     console.log("setting POI to ", !this.state.displayPOImenu);
-    this.state.displayPOImenu = !this.state.displayPOImenu;
-    addCoords(this.state.regionState.latitude, this.state.regionState.longitude);
+    this.state.displayPOImenu = !this.state.displayPOImenu; //flip POI menu display state
+    this.state.pendingPOI_skillLevel = null; //set POI states to default
+    this.state.pendingPOI_accessibility = null;
+    this.state.pendingPOI_image = null;
+    this.state.pendingPOI_type = null;
+    this.state.pendingPOI_lat = null;
+    this.state.pendingPOI_lon = null;
   }
 
   darkModeSwitch = () => { //enable dark mode if disabled, and vice versa, called when mode button pressed
@@ -85,7 +108,7 @@ export default class App extends Component {
   
 
   render() {
-    this.state.plusIconDimensions = this.state.APP_WIDTH * .3; //calculate icon dimensions based on app dimensions
+    this.state.plusIconDimensions = this.state.APP_WIDTH * .25; //calculate icon dimensions based on app dimensions
     this.state.darkModeIconDimensions = this.state.APP_WIDTH * .15;
     this.state.POImenuDimensions = this.state.APP_WIDTH * .8;
     this.state.bugIconDimensions = this.state.APP_WIDTH * .1
