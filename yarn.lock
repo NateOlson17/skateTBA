@@ -2891,6 +2891,14 @@ expo-font@~8.3.0:
     fbjs "1.0.0"
     fontfaceobserver "^2.1.0"
 
+expo-image-picker@~9.1.1:
+  version "9.1.1"
+  resolved "https://registry.yarnpkg.com/expo-image-picker/-/expo-image-picker-9.1.1.tgz#42abe9deb595fa9f9d8ac0d2ba8aad2cd6f69581"
+  integrity sha512-Etz2OQhRflfx+xFbSdma8QLZsnV/yq0M/yqYlsi3/RLiWAQYM/D/VmRfDDPiG10gm+KX3Xb5iKplNjPrWeTuQg==
+  dependencies:
+    expo-permissions "~9.3.0"
+    uuid "7.0.2"
+
 expo-keep-awake@~8.3.0:
   version "8.3.0"
   resolved "https://registry.yarnpkg.com/expo-keep-awake/-/expo-keep-awake-8.3.0.tgz#11bb8073dfe453259926855c81d9f35db03a79b9"
@@ -5269,6 +5277,11 @@ react-native-gesture-handler@~1.7.0:
     invariant "^2.2.4"
     prop-types "^15.7.2"
 
+react-native-image-crop-picker@^0.35.2:
+  version "0.35.2"
+  resolved "https://registry.yarnpkg.com/react-native-image-crop-picker/-/react-native-image-crop-picker-0.35.2.tgz#21e085e40cb5724e1e986b8eba59ef23df19598c"
+  integrity sha512-4nHAYwnemFJLzVJPl5dhNB+WQgNp41MLJjyYCypatMZl2GJD+EVXnu5eSUQE+UOpaIEhSVtqK5Y3OQ93hMhosQ==
+
 react-native-image-picker@^3.1.0:
   version "3.1.0"
   resolved "https://registry.yarnpkg.com/react-native-image-picker/-/react-native-image-picker-3.1.0.tgz#1bc0d18201abc71daf9c7573f03349d86f28e6e8"
@@ -6287,6 +6300,11 @@ utils-merge@1.0.1:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/utils-merge/-/utils-merge-1.0.1.tgz#9f95710f50a267947b2ccc124741c1028427e713"
   integrity sha1-n5VxD1CiZ5R7LMwSR0HBAoQn5xM=
+
+uuid@7.0.2:
+  version "7.0.2"
+  resolved "https://registry.yarnpkg.com/uuid/-/uuid-7.0.2.tgz#7ff5c203467e91f5e0d85cfcbaaf7d2ebbca9be6"
+  integrity sha512-vy9V/+pKG+5ZTYKf+VcphF5Oc6EFiu3W8Nv3P3zIh0EqVI80ZxOzuPfe9EHjkFNvf8+xuTHVeei4Drydlx4zjw==
 
 uuid@^3.3.2, uuid@^3.4.0:
   version "3.4.0"

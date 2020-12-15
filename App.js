@@ -1,5 +1,6 @@
 import React, { Component } from "react"; //importing necessary libraries
 import { StyleSheet, View, Image, TouchableOpacity, Text, Alert } from "react-native";
+import { useEffect } from "react";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import * as Permissions from "expo-permissions";
@@ -9,6 +10,7 @@ import { db } from './src/config';
 import { Slider } from 'react-native-range-slider-expo';
 import RadioButtonRN from 'radio-buttons-react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import * as ImagePicker from 'expo-image-picker';
 
 //images on poi
 //poi retrieval
@@ -36,8 +38,7 @@ export default class App extends Component {
       pendingPOI_type: null,
       pendingPOI_condition: null,
       pendingPOI_security: null,
-      pendingPOI_image: null,
-      imageSelected: false
+      pendingPOI_image: null
     };
   }
 
@@ -71,6 +72,8 @@ export default class App extends Component {
     if (status === "granted") { //verify user response, then begin asynchronous tracking
       this._getLocationAsync();
       console.log("location perms ", status);
+    } else {
+      Alert.alert("You need to allow location permissions for the map to function properly!\n\nTo change this, visit the Settings app, find this app towards the bottom, and enable.");
     }
   }
 
@@ -88,7 +91,6 @@ export default class App extends Component {
     this.state.pendingPOI_condition = null;
     this.state.pendingPOI_security = null;
     this.state.pendingPOI_image = null;
-    this.state.imageSelected = false;
   }
 
   darkModeSwitch = () => { //enable dark mode if disabled, and vice versa, called when mode button pressed
@@ -98,6 +100,26 @@ export default class App extends Component {
 
   initBugReport = () => {
     text("17085574833", "Bug Report or Suggestion:\n");
+  }
+
+  selectImage = async () => {
+    const {status} = await Permissions.askAsync(Permissions.CAMERA); //prompt for location perms
+    console.log("cam perms ", status);
+    if (status !== "granted") {
+      Alert.alert("You need to allow camera permissions to take pictures of the cool skate spots you find!\n\nTo change this, visit the Settings app, find this app towards the bottom, and enable.");
+    }
+    console.log("selecting image");
+    let result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: .5,
+      videoMaxDuration: 30
+    });
+
+    if (!result.cancelled) {
+      this.state.pendingPOI_image = result.uri;
+    }
   }
 
   pushPOIdata = () => {
@@ -248,7 +270,7 @@ export default class App extends Component {
                           />
                         }
                         selectedBtn = {(e) => {this.state.pendingPOI_type = e['label']}} //set POI type state variable on radio button select
-                        animationTypes = {['zoomIn', 'pulse']}
+                        animationTypes = {['pulse', 'rotate']}
                       /> 
                       <Text style = {{alignSelf: 'center', fontWeight: 'bold', lineHeight: 38, paddingLeft: this.state.POImenuDimensions * .035}}>
                         Ramp{'\n'}Rail{'\n'}Ledge{'\n'}Gap{'\n'}
@@ -256,9 +278,9 @@ export default class App extends Component {
 
                     </View>
 
-      POIimageUpload =  <TouchableOpacity>
+      POIimageUpload =  <TouchableOpacity onPress = {this.selectImage}>
                     <Image
-                      source = {this.state.imageSelected ? require('./src/components/uploadimg_pos.png') : require('./src/components/uploadimg_neg.png')} //submit button for POI info
+                      source = {this.state.pendingPOI_image ? require('./src/components/uploadimg_pos.png') : require('./src/components/uploadimg_neg.png')} //submit button for POI info
                       style = {{
                         position: 'absolute',
                         resizeMode: 'contain',
