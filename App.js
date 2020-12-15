@@ -1,5 +1,5 @@
 import React, { Component } from "react"; //importing necessary libraries
-import { StyleSheet, View, Image, TouchableOpacity, Text } from "react-native";
+import { StyleSheet, View, Image, TouchableOpacity, Text, Alert } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import * as Permissions from "expo-permissions";
@@ -7,25 +7,8 @@ import { Dimensions } from 'react-native';
 import { text } from 'react-native-communications';
 import { db } from './src/config';
 import { Slider } from 'react-native-range-slider-expo';
-
-//add states for currentPOI_skillLevel, currentPOI_photo, etc. set these to defaults when initiate_addPOI is called.
-//create sliders and such and store their data in these variables
-//when "submit" button activated, push the contents of these variables to RDB
-
-let pushPOIdata = (skillLevel, accessibility, image, type, lat, lon) => {
-  if (pendingPOI_skillLevel && pendingPOI_accessibility && pendingPOI_image && pendingPOI_type && pendingPOI_lat && pendingPOI_lon) { //verify definition of POI props
-    db.ref('/poi').push({ //push POI data to directory
-      skillLevel: skillLevel,
-      accessibility: accessibility,
-      image: image,
-      type: type,
-      lat: lat,
-      lon: lon
-    });
-  } else {
-    console.log("undefined POI prop");
-  }
-};
+import RadioButtonRN from 'radio-buttons-react-native';
+import Icon from 'react-native-vector-icons/FontAwesome';
 
 export default class App extends Component {
   
@@ -34,20 +17,19 @@ export default class App extends Component {
     this.state = {
       APP_WIDTH: Dimensions.get('window').width,
       APP_HEIGHT: Dimensions.get('window').height,
-      plusIconDimensions: 144, //height/width of the plus icon in pixels - initialized later - this is fallback value
+      plusIconDimensions: 144, //height/width of icons in pixels - initialized later - these are fallback values
       darkModeIconDimensions: 57,
       POImenuDimensions: 350,
       bugIconDimensions: 50,
-      posColor: '#6cccdc',
-      negColor: '#dc6c6c',
-      neutralColor: '#041c4b',
+      posColor: '#6cccdc', //blue theme color
+      negColor: '#dc6c6c', //red theme color
+      neutralColor: '#041c4b', //dark blue theme color
       regionState: null, //carries region lat/lon and corresponding deltas
       didMount: false, //tracks component mount status for processes to eliminate memory leakage
       darkModeEnabled: false,
       displayPOImenu: false,
       pendingPOI_skillLevel: null, //null-define unentered POI states
       pendingPOI_accessibility: null,
-      pendingPOI_image: null,
       pendingPOI_type: null,
       pendingPOI_condition: null,
       pendingPOI_security: null
@@ -90,14 +72,14 @@ export default class App extends Component {
   async componentWillUnmount() {this.state.didMount = false;} //update state (checked for in _getLocationAsync)
 
   initiate_addPOI = () => { //when "add POI" button is pressed, triggers this function
+    if (this.state.pendingPOI_type) {
+      console.log(this.state.pendingPOI_type['label']);
+    }
     console.log("setting POI to ", !this.state.displayPOImenu);
     this.state.displayPOImenu = !this.state.displayPOImenu; //flip POI menu display state
     this.state.pendingPOI_skillLevel = null; //set POI states to default
     this.state.pendingPOI_accessibility = null;
-    this.state.pendingPOI_image = null;
     this.state.pendingPOI_type = null;
-    this.state.pendingPOI_lat = null;
-    this.state.pendingPOI_lon = null;
   }
 
   darkModeSwitch = () => { //enable dark mode if disabled, and vice versa, called when mode button pressed
@@ -108,6 +90,25 @@ export default class App extends Component {
   initBugReport = () => {
     text("17085574833", "Bug Report or Suggestion:\n");
   }
+
+  pushPOIdata = () => {
+    if (this.state.pendingPOI_skillLevel && this.state.pendingPOI_accessibility && this.state.pendingPOI_condition && this.state.pendingPOI_security && this.state.pendingPOI_type && this.state.regionState) { //verify definition of POI props
+      console.log("pushing to RDB");
+      db.ref('/poi').push({ //push POI data to directory
+        skillLevel: this.state.pendingPOI_skillLevel,
+        accessibility: this.state.pendingPOI_accessibility,
+        type: this.state.pendingPOI_type,
+        condition: this.state.pendingPOI_condition,
+        security: this.state.pendingPOI_security,
+        lat: this.state.regionState.latitude,
+        lon: this.state.regionState.longitude
+      });
+      this.state.displayPOImenu = false; //withdraw POI menu
+      Alert.alert("Your skate spot has been added to the database!😎\n\n(This is monitored and spam entries will be deleted)");
+    } else {
+      Alert.alert("Please fill out all fields. Remember to select a type!😄");
+    }
+  };
 
   render() {
     this.state.plusIconDimensions = this.state.APP_WIDTH * .25; //calculate icon dimensions based on app dimensions
@@ -124,8 +125,9 @@ export default class App extends Component {
     }
     let POIcond = null;
     let POIcontent = null;
+    let POIsubmit = null;
     if (this.state.displayPOImenu) { //set POI menu to render only if state variable allows
-      POIcond = <Image
+      POIcond = <Image //POI menu bubble image
                   style = {{
                             position: 'absolute',
                             bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions,
@@ -136,23 +138,34 @@ export default class App extends Component {
                           }}
                   source = {require('./src/components/POI_menu.png')}
                 />
-      POIcontent =  <View
+      const radioTypeData = [ //data for POI menu radio boxes
+        {label: 'Ramp'},
+        {label: 'Rail'},
+        {label: 'Ledge'},
+        {label: 'Gap'}
+      ];  
+      POIcontent =  <View //wrapper view for POI menu content
                       style = {{
                         position: 'absolute',
                         bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions,
                         left: (this.state.APP_WIDTH - this.state.POImenuDimensions)/2,
                         width: this.state.POImenuDimensions,
                         height: .5 * this.state.APP_HEIGHT,
-                        flexDirection:'row', flexWrap:'wrap'
+                        flexDirection: 'row', 
+                        flexWrap: 'wrap'
                       }}
                     >
 
                       <View //accessibility slider wrapper
-                        style = {{paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
+                        style = {{
+                          paddingLeft: this.state.POImenuDimensions * .05, 
+                          width: this.state.POImenuDimensions * .5, 
+                          flexDirection: "column"
+                        }}
                       >
-                        <Slider min={0} max={10} step={1} //accessibility slider
-                          valueOnChange={value => {this.state.pendingPOI_accessibility = value}}
-                          initialValue={5}
+                        <Slider min = {0} max = {10} step = {1} //accessibility slider
+                          valueOnChange = {value => {this.state.pendingPOI_accessibility = value}}
+                          initialValue = {5}
                           knobColor = {this.state.neutralColor}
                           valueLabelsBackgroundColor = {this.state.neutralColor}
                           inRangeBarColor = {this.state.negColor}
@@ -164,9 +177,9 @@ export default class App extends Component {
                       <View //skillLevel slider wrapper
                         style = {{paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
                       >
-                        <Slider min={0} max={10} step={1} //skillLevel slider
-                          valueOnChange={value => {this.state.pendingPOI_skillLevel = value}}
-                          initialValue={5}
+                        <Slider min = {0} max = {10} step = {1} //skillLevel slider
+                          valueOnChange = {value => {this.state.pendingPOI_skillLevel = value}}
+                          initialValue = {5}
                           knobColor = {this.state.neutralColor}
                           valueLabelsBackgroundColor = {this.state.neutralColor}
                           inRangeBarColor = {this.state.negColor}
@@ -176,11 +189,11 @@ export default class App extends Component {
                       </View>
 
                       <View //security slider wrapper
-                        style = {{paddingBottom: this.state.APP_HEIGHT * .03, paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
+                        style = {{paddingBottom: this.state.APP_HEIGHT * .01, paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
                       >
-                        <Slider min={0} max={10} step={1} //security slider
-                          valueOnChange={value => {this.state.pendingPOI_security = value}}
-                          initialValue={5}
+                        <Slider min = {0} max = {10} step = {1} //security slider
+                          valueOnChange = {value => {this.state.pendingPOI_security = value}}
+                          initialValue = {5}
                           knobColor = {this.state.neutralColor}
                           valueLabelsBackgroundColor = {this.state.neutralColor}
                           inRangeBarColor = {this.state.negColor}
@@ -190,11 +203,11 @@ export default class App extends Component {
                       </View>
 
                       <View //condition slider wrapper
-                        style = {{paddingBottom: this.state.APP_HEIGHT * .03, paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
+                        style = {{paddingBottom: this.state.APP_HEIGHT * .01, paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
                       >
-                        <Slider min={0} max={10} step={1} //condition slider
-                          valueOnChange={value => {this.state.pendingPOI_condition = value}}
-                          initialValue={5}
+                        <Slider min = {0} max = {10} step = {1} //condition slider
+                          valueOnChange = {value => {this.state.pendingPOI_condition = value}}
+                          initialValue = {5}
                           knobColor = {this.state.neutralColor}
                           valueLabelsBackgroundColor = {this.state.neutralColor}
                           inRangeBarColor = {this.state.negColor}
@@ -202,10 +215,48 @@ export default class App extends Component {
                         />
                         <Text style = {{alignSelf: 'center', fontWeight: 'bold'}}>Condition</Text>
                       </View>
-
-                      <Text style = {{alignSelf: 'center', fontWeight: 'bold', paddingLeft: this.state.POImenuDimensions * .05}}>Type:</Text>
+                      <View //divider line after sliders on POI menu
+                        style = {{
+                          width: this.state.POImenuDimensions,
+                          backgroundColor: this.state.neutralColor,
+                          height: 1
+                        }}
+                      >
+                      </View>
+                      
+                      <RadioButtonRN //radio button array
+                        style = {{paddingLeft: this.state.POImenuDimensions * .15}}
+                        data = {radioTypeData}
+                        box = {false}
+                        icon = {
+                          <Icon //from react-native-vector-icons library
+                            name = "check-circle-o"
+                            size = {25}
+                            color = {this.state.posColor}
+                          />
+                        }
+                        selectedBtn = {(e) => {this.state.pendingPOI_type = e['label']}} //set POI type state variable on radio button select
+                        animationTypes = {['zoomIn', 'pulse']}
+                      /> 
+                      <Text style = {{alignSelf: 'center', fontWeight: 'bold', lineHeight: 38, paddingLeft: this.state.POImenuDimensions * .035}}>
+                        Ramp{'\n'}Rail{'\n'}Ledge{'\n'}Gap{'\n'}
+                      </Text>
 
                     </View>
+      POIsubmit = <TouchableOpacity onPress = {this.pushPOIdata}> 
+                        <Image
+                          source = {require('./src/components/submitPOI.png')} //submit button for POI info
+                          style = {{
+                            position: 'absolute',
+                            width: this.state.POImenuDimensions * .2,
+                            height: this.state.POImenuDimensions * .2,
+                            resizeMode: 'contain',
+                            left: this.state.APP_WIDTH/2 + this.state.POImenuDimensions * .15,
+                            bottom: this.state.APP_HEIGHT * .25
+                          }}
+                        />
+                      </TouchableOpacity>
+
     }
 
     let defaultMapStyle = [] //generate map styles (stored locally)
@@ -317,7 +368,7 @@ export default class App extends Component {
 
             <Text //bug report text
               style = {{
-                color: this.state.darkModeEnabled ? "#013" : "#ffe",
+                color: this.state.darkModeEnabled ? this.state.neutralColor : "#fff",
                 fontSize: 11,
                 paddingLeft: 13
               }}
@@ -326,7 +377,7 @@ export default class App extends Component {
             </Text>
             <Text
               style = {{
-                color: this.state.darkModeEnabled ? "#013" : "#ffe",
+                color: this.state.darkModeEnabled ? this.state.neutralColor : "#fff",
                 paddingLeft: 27,
                 paddingBottom: 10,
                 fontSize: 11
@@ -353,6 +404,7 @@ export default class App extends Component {
         
         {POIcond /*conditionally render POI menu*/}
         {POIcontent}
+        {POIsubmit}
 
         <TouchableOpacity onPress = {this.initiate_addPOI}>
           <Image  //"add POI" button
