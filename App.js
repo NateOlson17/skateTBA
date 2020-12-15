@@ -98,10 +98,6 @@ export default class App extends Component {
     this.state.darkModeEnabled = !this.state.darkModeEnabled;
   }
 
-  initBugReport = () => {
-    text("17085574833", "Bug Report or Suggestion:\n");
-  }
-
   selectImage = async () => {
     const {status} = await Permissions.askAsync(Permissions.CAMERA); //prompt for location perms
     console.log("cam perms ", status);
@@ -412,7 +408,7 @@ export default class App extends Component {
 
         <View style = {this.state.darkModeEnabled ? styles.dmheader : styles.header}>
 
-        <TouchableOpacity onPress = {this.initBugReport}>
+        <TouchableOpacity onPress = {text("17085574833", "Bug Report or Suggestion:\n")}>
 
           <Image  //bug report button
               style = {{
