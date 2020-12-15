@@ -10,6 +10,9 @@ import { Slider } from 'react-native-range-slider-expo';
 import RadioButtonRN from 'radio-buttons-react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 
+//images on poi
+//poi retrieval
+
 export default class App extends Component {
   
   constructor(props) {
@@ -32,7 +35,9 @@ export default class App extends Component {
       pendingPOI_accessibility: null,
       pendingPOI_type: null,
       pendingPOI_condition: null,
-      pendingPOI_security: null
+      pendingPOI_security: null,
+      pendingPOI_image: null,
+      imageSelected: false
     };
   }
 
@@ -77,9 +82,13 @@ export default class App extends Component {
     }
     console.log("setting POI to ", !this.state.displayPOImenu);
     this.state.displayPOImenu = !this.state.displayPOImenu; //flip POI menu display state
-    this.state.pendingPOI_skillLevel = null; //set POI states to default
+    this.state.pendingPOI_skillLevel = null, //reset pending POI state variables
     this.state.pendingPOI_accessibility = null;
     this.state.pendingPOI_type = null;
+    this.state.pendingPOI_condition = null;
+    this.state.pendingPOI_security = null;
+    this.state.pendingPOI_image = null;
+    this.state.imageSelected = false;
   }
 
   darkModeSwitch = () => { //enable dark mode if disabled, and vice versa, called when mode button pressed
@@ -92,7 +101,8 @@ export default class App extends Component {
   }
 
   pushPOIdata = () => {
-    if (this.state.pendingPOI_skillLevel && this.state.pendingPOI_accessibility && this.state.pendingPOI_condition && this.state.pendingPOI_security && this.state.pendingPOI_type && this.state.regionState) { //verify definition of POI props
+    if (this.state.pendingPOI_skillLevel && this.state.pendingPOI_accessibility && this.state.pendingPOI_condition 
+      && this.state.pendingPOI_security && this.state.pendingPOI_type && this.state.regionState && this.state.pendingPOI_image) { //verify definition of POI props
       console.log("pushing to RDB");
       db.ref('/poi').push({ //push POI data to directory
         skillLevel: this.state.pendingPOI_skillLevel,
@@ -101,12 +111,13 @@ export default class App extends Component {
         condition: this.state.pendingPOI_condition,
         security: this.state.pendingPOI_security,
         lat: this.state.regionState.latitude,
-        lon: this.state.regionState.longitude
+        lon: this.state.regionState.longitude,
+        image: this.state.pendingPOI_image
       });
       this.state.displayPOImenu = false; //withdraw POI menu
       Alert.alert("Your skate spot has been added to the database!😎\n\n(This is monitored and spam entries will be deleted)");
     } else {
-      Alert.alert("Please fill out all fields. Remember to select a type!😄");
+      Alert.alert("Please fill out all fields. Remember to select a type and image!😄");
     }
   };
 
@@ -126,6 +137,7 @@ export default class App extends Component {
     let POIcond = null;
     let POIcontent = null;
     let POIsubmit = null;
+    let POIimageUpload = null;
     if (this.state.displayPOImenu) { //set POI menu to render only if state variable allows
       POIcond = <Image //POI menu bubble image
                   style = {{
@@ -243,6 +255,31 @@ export default class App extends Component {
                       </Text>
 
                     </View>
+
+      POIimageUpload =  <TouchableOpacity>
+                    <Image
+                      source = {this.state.imageSelected ? require('./src/components/uploadimg_pos.png') : require('./src/components/uploadimg_neg.png')} //submit button for POI info
+                      style = {{
+                        position: 'absolute',
+                        resizeMode: 'contain',
+                        left: this.state.APP_WIDTH/2 + this.state.POImenuDimensions * .04,
+                        bottom: this.state.APP_HEIGHT * .2 + this.state.POImenuDimensions * .2,
+                        width: this.state.APP_WIDTH * .35
+                      }}
+                    />
+                    <Text 
+                      style = {{
+                        alignSelf: 'center', 
+                        fontWeight: 'bold', 
+                        position: 'absolute', 
+                        left: this.state.APP_WIDTH/2 + this.state.POImenuDimensions * .12,
+                        bottom: this.state.APP_HEIGHT * .2 + this.state.POImenuDimensions * .325
+                      }}
+                    >
+                      Select Image
+                    </Text>
+                  </TouchableOpacity>
+
       POIsubmit = <TouchableOpacity onPress = {this.pushPOIdata}> 
                         <Image
                           source = {require('./src/components/submitPOI.png')} //submit button for POI info
@@ -252,11 +289,10 @@ export default class App extends Component {
                             height: this.state.POImenuDimensions * .2,
                             resizeMode: 'contain',
                             left: this.state.APP_WIDTH/2 + this.state.POImenuDimensions * .15,
-                            bottom: this.state.APP_HEIGHT * .25
+                            bottom: this.state.APP_HEIGHT * .22
                           }}
                         />
                       </TouchableOpacity>
-
     }
 
     let defaultMapStyle = [] //generate map styles (stored locally)
@@ -404,6 +440,7 @@ export default class App extends Component {
         
         {POIcond /*conditionally render POI menu*/}
         {POIcontent}
+        {POIimageUpload}
         {POIsubmit}
 
         <TouchableOpacity onPress = {this.initiate_addPOI}>
