@@ -1,6 +1,5 @@
 import React, { Component } from "react"; //importing necessary libraries
 import { StyleSheet, View, Image, TouchableOpacity, Text, Alert } from "react-native";
-import { useEffect } from "react";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import * as Permissions from "expo-permissions";
@@ -12,8 +11,9 @@ import RadioButtonRN from 'radio-buttons-react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import * as ImagePicker from 'expo-image-picker';
 
-//images on poi
-//poi retrieval
+//poi retrieval on app init
+
+//comments + img/vid addition for poi when marked on map
 
 export default class App extends Component {
   
@@ -38,7 +38,8 @@ export default class App extends Component {
       pendingPOI_type: null,
       pendingPOI_condition: null,
       pendingPOI_security: null,
-      pendingPOI_image: null
+      pendingPOI_image: null,
+      markers: []
     };
   }
 
@@ -67,14 +68,25 @@ export default class App extends Component {
 
   async componentDidMount() { //when component is mounted
     this.state.didMount = true; //update state var
+
+    db.ref('/poi').on('value', (snapshot) => {
+      this.state.markers = snapshot.val();
+      this.state.markers = Object.keys(this.state.markers).map((key) => [String(key), this.state.markers[key]]);
+      let markersTemp = []
+      for (i = 0; i < this.state.markers.length; i++) {
+        markersTemp.push(this.state.markers[i][1]);
+      }
+      this.state.markers = markersTemp;
+    });
+
     const {status} = await Permissions.askAsync(Permissions.LOCATION); //prompt for location perms
 
     if (status === "granted") { //verify user response, then begin asynchronous tracking
       this._getLocationAsync();
-      console.log("location perms ", status);
     } else {
       Alert.alert("You need to allow location permissions for the map to function properly!\n\nTo change this, visit the Settings app, find this app towards the bottom, and enable.");
     }
+    console.log("location perms ", status);
   }
 
   async componentWillUnmount() {this.state.didMount = false;} //update state (checked for in _getLocationAsync)
@@ -98,6 +110,10 @@ export default class App extends Component {
     this.state.darkModeEnabled = !this.state.darkModeEnabled;
   }
 
+  initBugReport = () => {
+    text("17085574833", "Bug Report or Suggestion:\n");
+  }
+
   selectImage = async () => {
     const {status} = await Permissions.askAsync(Permissions.CAMERA); //prompt for location perms
     console.log("cam perms ", status);
@@ -119,8 +135,8 @@ export default class App extends Component {
   }
 
   pushPOIdata = () => {
-    if (this.state.pendingPOI_skillLevel && this.state.pendingPOI_accessibility && this.state.pendingPOI_condition 
-      && this.state.pendingPOI_security && this.state.pendingPOI_type && this.state.regionState && this.state.pendingPOI_image) { //verify definition of POI props
+    if (this.state.pendingPOI_skillLevel != null && this.state.pendingPOI_accessibility != null && this.state.pendingPOI_condition != null
+      && this.state.pendingPOI_security != null && this.state.pendingPOI_type && this.state.regionState && this.state.pendingPOI_image) { //verify definition of POI props
       console.log("pushing to RDB");
       db.ref('/poi').push({ //push POI data to directory
         skillLevel: this.state.pendingPOI_skillLevel,
@@ -408,7 +424,7 @@ export default class App extends Component {
 
         <View style = {this.state.darkModeEnabled ? styles.dmheader : styles.header}>
 
-        <TouchableOpacity onPress = {text("17085574833", "Bug Report or Suggestion:\n")}>
+        <TouchableOpacity onPress = {this.initBugReport}>
 
           <Image  //bug report button
               style = {{
