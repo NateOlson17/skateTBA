@@ -11,8 +11,6 @@ import RadioButtonRN from 'radio-buttons-react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import * as ImagePicker from 'expo-image-picker';
 
-//poi retrieval on app init
-
 //comments + img/vid addition for poi when marked on map
 
 export default class App extends Component {
@@ -144,8 +142,7 @@ export default class App extends Component {
         type: this.state.pendingPOI_type,
         condition: this.state.pendingPOI_condition,
         security: this.state.pendingPOI_security,
-        lat: this.state.regionState.latitude,
-        lon: this.state.regionState.longitude,
+        regionState: this.state.regionState,
         image: this.state.pendingPOI_image
       });
       this.state.displayPOImenu = false; //withdraw POI menu
@@ -154,6 +151,10 @@ export default class App extends Component {
       Alert.alert("Please fill out all fields. Remember to select a type and image!😄");
     }
   };
+
+  gatherMarkerInfo = (key_p) => {
+    console.log(key_p);
+  }
 
   render() {
     this.state.plusIconDimensions = this.state.APP_WIDTH * .25; //calculate icon dimensions based on app dimensions
@@ -470,6 +471,18 @@ export default class App extends Component {
           customMapStyle = {this.state.darkModeEnabled ? darkMapStyle : defaultMapStyle} //ternary determines map style based on darkModeEnabled state
         >
           {markerCond /*conditionally render markerCond dependent upon the definition status of regionState*/}
+          
+          {this.state.markers.map((marker, index) => (
+            marker.regionState ? 
+            <Marker
+              key = {index}
+              coordinate = {marker.regionState}
+              pinColor = {this.state.posColor}
+              onPress = {() => {console.log(this.state.markers[index])}}
+            />
+            : null
+          ))}
+
         </MapView>
         
         {POIcond /*conditionally render POI menu*/}
