@@ -1,5 +1,5 @@
 import React, { Component } from "react"; //importing necessary libraries
-import { StyleSheet, View, Image, TouchableOpacity, Text, Alert, StatusBar } from "react-native";
+import { StyleSheet, View, Image, TouchableOpacity, Text, Alert, StatusBar, Platform } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import * as Permissions from "expo-permissions";
@@ -13,11 +13,14 @@ import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
 
 //comments + img/vid addition for poi when marked on map
+//heading direction
+//x for current POI display
 
 export default class App extends Component {
   
   constructor(props) {
     super(props);
+    Text.allowFontScaling = false; // Disallow dynamic type on iOS
     this.state = {
       APP_WIDTH: Dimensions.get('window').width,
       APP_HEIGHT: Dimensions.get('window').height,
@@ -39,7 +42,8 @@ export default class App extends Component {
       pendingPOI_security: null,
       pendingPOI_image: null,
       markers: [],
-      currentPOI: null
+      currentPOI: null,
+      currentPOIcontent: null
     };
   }
 
@@ -94,9 +98,8 @@ export default class App extends Component {
   async componentWillUnmount() {this.state.didMount = false;} //update state (checked for in _getLocationAsync)
 
   initiate_addPOI = () => { //when "add POI" button is pressed, triggers this function
-    if (this.state.pendingPOI_type) {
-      console.log(this.state.pendingPOI_type['label']);
-    }
+    this.state.currentPOI = null;
+    this.state.currentPOIcontent = null;
     console.log("setting POI to ", !this.state.displayPOImenu);
     this.state.displayPOImenu = !this.state.displayPOImenu; //flip POI menu display state
     this.state.pendingPOI_skillLevel = null, //reset pending POI state variables
@@ -150,22 +153,23 @@ export default class App extends Component {
         image: this.state.pendingPOI_image
       });
       this.state.displayPOImenu = false; //withdraw POI menu
-      Alert.alert("Your skate spot has been added to the database!😎\n\n(This is monitored and spam entries will be deleted)");
+      Alert.alert("Your skate spot has been added to the database!😎 \n\n(This is monitored and spam entries will be deleted)");
     } else {
       Alert.alert("Please fill out all fields. Remember to select a type and image!😄");
     }
   };
 
   POIactivationHandler = (poi_obj) => {
-    this.state.currentPOI = <View style = {{position: 'absolute', bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 10, backgroundColor: '#fff', height: 200, width: this.state.APP_WIDTH}}>
-
-                            </View>
+    this.state.currentPOI = <Image
+                              source = {require('./src/components/selectedDisplay.png')} //submit button for POI info
+                              style = {{resizeMode: 'contain', position: 'absolute', bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 10, height: 200, width: this.state.APP_WIDTH}}
+                            />
   }
 
   render() {
     this.state.plusIconDimensions = this.state.APP_WIDTH * .25; //calculate icon dimensions based on app dimensions
     this.state.darkModeIconDimensions = this.state.APP_WIDTH * .15;
-    this.state.POImenuDimensions = /*this.state.APP_WIDTH * .8*/330;
+    this.state.POImenuDimensions = /*this.state.APP_WIDTH * .8*/338;
     this.state.bugIconDimensions = this.state.APP_WIDTH * .1
     let markerCond = null;
     if (this.state.regionState) {
@@ -183,10 +187,10 @@ export default class App extends Component {
       POIcond = <Image //POI menu bubble image
                   style = {{
                             position: 'absolute',
-                            bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions,
+                            bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 7,
                             left: (this.state.APP_WIDTH - this.state.POImenuDimensions)/2,
                             width: this.state.POImenuDimensions,
-                            height: /*.5 * this.state.APP_HEIGHT*/448,
+                            height: /*.5 * this.state.APP_HEIGHT*/452,
                             resizeMode: 'contain'
                           }}
                   source = {require('./src/components/POI_menu.png')}
@@ -216,6 +220,8 @@ export default class App extends Component {
                           flexDirection: "column"
                         }}
                       >
+                        <Text style = {{alignSelf: 'center', fontWeight: 'bold'}}>Accessibility</Text>
+
                         <Slider min = {0} max = {10} step = {1} //accessibility slider
                           valueOnChange = {value => {this.state.pendingPOI_accessibility = value}}
                           initialValue = {5}
@@ -224,12 +230,13 @@ export default class App extends Component {
                           inRangeBarColor = {this.state.negColor}
                           outOfRangeBarColor = {this.state.posColor}
                         />
-                        <Text style = {{alignSelf: 'center', fontWeight: 'bold'}}>Accessibility</Text>
                       </View>
 
                       <View //skillLevel slider wrapper
                         style = {{paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
                       >
+                        <Text style = {{alignSelf: 'center', fontWeight: 'bold'}}>Skill Level</Text>
+
                         <Slider min = {0} max = {10} step = {1} //skillLevel slider
                           valueOnChange = {value => {this.state.pendingPOI_skillLevel = value}}
                           initialValue = {5}
@@ -238,12 +245,13 @@ export default class App extends Component {
                           inRangeBarColor = {this.state.negColor}
                           outOfRangeBarColor = {this.state.posColor}
                         />
-                        <Text style = {{alignSelf: 'center', fontWeight: 'bold'}}>Skill Level</Text>
                       </View>
 
                       <View //security slider wrapper
-                        style = {{paddingBottom: this.state.APP_HEIGHT * .01, paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
+                        style = {{/*paddingBottom: this.state.APP_HEIGHT * .01, */paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
                       >
+                        <Text style = {{alignSelf: 'center', fontWeight: 'bold'}}>Security</Text>
+
                         <Slider min = {0} max = {10} step = {1} //security slider
                           valueOnChange = {value => {this.state.pendingPOI_security = value}}
                           initialValue = {5}
@@ -252,12 +260,13 @@ export default class App extends Component {
                           inRangeBarColor = {this.state.negColor}
                           outOfRangeBarColor = {this.state.posColor}
                         />
-                        <Text style = {{alignSelf: 'center', fontWeight: 'bold'}}>Security</Text>
                       </View>
 
                       <View //condition slider wrapper
-                        style = {{paddingBottom: this.state.APP_HEIGHT * .01, paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
+                        style = {{/*paddingBottom: this.state.APP_HEIGHT * .01, */paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
                       >
+                        <Text style = {{alignSelf: 'center', fontWeight: 'bold'}}>Condition</Text>
+
                         <Slider min = {0} max = {10} step = {1} //condition slider
                           valueOnChange = {value => {this.state.pendingPOI_condition = value}}
                           initialValue = {5}
@@ -266,7 +275,6 @@ export default class App extends Component {
                           inRangeBarColor = {this.state.negColor}
                           outOfRangeBarColor = {this.state.posColor}
                         />
-                        <Text style = {{alignSelf: 'center', fontWeight: 'bold'}}>Condition</Text>
                       </View>
                       <View //divider line after sliders on POI menu
                         style = {{
@@ -304,7 +312,7 @@ export default class App extends Component {
                         position: 'absolute',
                         resizeMode: 'contain',
                         left: this.state.APP_WIDTH/2 + this.state.POImenuDimensions * .04,
-                        bottom: this.state.APP_HEIGHT * .2 + this.state.POImenuDimensions * .2,
+                        bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 140,
                         width: this.state.APP_WIDTH * .35
                       }}
                     />
@@ -314,7 +322,7 @@ export default class App extends Component {
                         fontWeight: 'bold', 
                         position: 'absolute', 
                         left: this.state.APP_WIDTH/2 + this.state.POImenuDimensions * .12,
-                        bottom: this.state.APP_HEIGHT * .2 + this.state.POImenuDimensions * .325
+                        bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 170
                       }}
                     >
                       Select Image
@@ -429,7 +437,11 @@ export default class App extends Component {
     return (
       <View style = {styles.container}>
 
-        {this.state.darkModeEnabled ? StatusBar.setBarStyle('light-content', true) : StatusBar.setBarStyle('dark-content', true)}
+        {
+          Platform.OS === 'ios' && Constants.statusBarHeight > 40 ?
+          this.state.darkModeEnabled ? StatusBar.setBarStyle('light-content', true) : StatusBar.setBarStyle('dark-content', true)
+          : null
+        }
 
         <View style = {{position: 'absolute', left: 0, top: 40, zIndex: 1}}>
 
@@ -482,12 +494,14 @@ export default class App extends Component {
           ))}
 
         </MapView>
+
+        {this.state.currentPOI}
+        {this.state.currentPOIcontent}
         
         {POIcond /*conditionally render POI menu*/}
         {POIcontent}
         {POIimageUpload}
         {POIsubmit}
-        {this.state.currentPOI}
 
         <TouchableOpacity onPress = {this.initiate_addPOI}>
           <Image  //"add POI" button
