@@ -1,5 +1,5 @@
 import React, { Component } from "react"; //importing necessary libraries
-import { StyleSheet, View, Image, TouchableOpacity, Text, Alert } from "react-native";
+import { StyleSheet, View, Image, TouchableOpacity, Text, Alert, StatusBar } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import * as Permissions from "expo-permissions";
@@ -10,6 +10,7 @@ import { Slider } from 'react-native-range-slider-expo';
 import RadioButtonRN from 'radio-buttons-react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import * as ImagePicker from 'expo-image-picker';
+import Constants from 'expo-constants';
 
 //comments + img/vid addition for poi when marked on map
 
@@ -37,7 +38,8 @@ export default class App extends Component {
       pendingPOI_condition: null,
       pendingPOI_security: null,
       pendingPOI_image: null,
-      markers: []
+      markers: [],
+      currentPOI: null
     };
   }
 
@@ -65,6 +67,8 @@ export default class App extends Component {
   };
 
   async componentDidMount() { //when component is mounted
+    console.log("AW ", this.state.APP_WIDTH);
+    console.log("AH ", this.state.APP_HEIGHT);
     this.state.didMount = true; //update state var
 
     db.ref('/poi').on('value', (snapshot) => {
@@ -152,14 +156,16 @@ export default class App extends Component {
     }
   };
 
-  gatherMarkerInfo = (key_p) => {
-    console.log(key_p);
+  POIactivationHandler = (poi_obj) => {
+    this.state.currentPOI = <View style = {{position: 'absolute', bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 10, backgroundColor: '#fff', height: 200, width: this.state.APP_WIDTH}}>
+
+                            </View>
   }
 
   render() {
     this.state.plusIconDimensions = this.state.APP_WIDTH * .25; //calculate icon dimensions based on app dimensions
     this.state.darkModeIconDimensions = this.state.APP_WIDTH * .15;
-    this.state.POImenuDimensions = this.state.APP_WIDTH * .8;
+    this.state.POImenuDimensions = /*this.state.APP_WIDTH * .8*/330;
     this.state.bugIconDimensions = this.state.APP_WIDTH * .1
     let markerCond = null;
     if (this.state.regionState) {
@@ -180,7 +186,7 @@ export default class App extends Component {
                             bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions,
                             left: (this.state.APP_WIDTH - this.state.POImenuDimensions)/2,
                             width: this.state.POImenuDimensions,
-                            height: .5 * this.state.APP_HEIGHT,
+                            height: /*.5 * this.state.APP_HEIGHT*/448,
                             resizeMode: 'contain'
                           }}
                   source = {require('./src/components/POI_menu.png')}
@@ -423,7 +429,9 @@ export default class App extends Component {
     return (
       <View style = {styles.container}>
 
-        <View style = {this.state.darkModeEnabled ? styles.dmheader : styles.header}>
+        {this.state.darkModeEnabled ? StatusBar.setBarStyle('light-content', true) : StatusBar.setBarStyle('dark-content', true)}
+
+        <View style = {{position: 'absolute', left: 0, top: 40, zIndex: 1}}>
 
         <TouchableOpacity onPress = {this.initBugReport}>
 
@@ -439,22 +447,12 @@ export default class App extends Component {
 
             <Text //bug report text
               style = {{
-                color: this.state.darkModeEnabled ? this.state.neutralColor : "#fff",
+                color: this.state.darkModeEnabled ? "#fff" : this.state.neutralColor,
                 fontSize: 11,
-                paddingLeft: 13
+                textAlign: "center"
               }}
             >
-              Give a Suggestion/
-            </Text>
-            <Text
-              style = {{
-                color: this.state.darkModeEnabled ? this.state.neutralColor : "#fff",
-                paddingLeft: 27,
-                paddingBottom: 10,
-                fontSize: 11
-              }}
-            >
-              Report a Bug
+              Give a Suggestion{'\n'}Report a bug
             </Text>
 
           </TouchableOpacity>
@@ -478,7 +476,7 @@ export default class App extends Component {
               key = {index}
               coordinate = {marker.regionState}
               pinColor = {this.state.posColor}
-              onPress = {() => {console.log(this.state.markers[index])}}
+              onPress = {() => {this.POIactivationHandler(this.state.markers[index])}}
             />
             : null
           ))}
@@ -489,6 +487,7 @@ export default class App extends Component {
         {POIcontent}
         {POIimageUpload}
         {POIsubmit}
+        {this.state.currentPOI}
 
         <TouchableOpacity onPress = {this.initiate_addPOI}>
           <Image  //"add POI" button
@@ -532,19 +531,5 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff"
-  },
-
-  header: {
-    flex: .15,
-    backgroundColor: '#041c4b',
-    justifyContent: 'flex-end',
-    alignItems: 'flex-end'
-  },
-
-  dmheader: {
-    flex: .15,
-    backgroundColor: '#fff',
-    justifyContent: 'flex-end',
-    alignItems: 'flex-end'
   }
 });
