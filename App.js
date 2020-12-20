@@ -12,9 +12,9 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
 
+//work on selectedDisplay
 //comments + img/vid addition for poi when marked on map
-//heading direction
-//x for current POI display
+//heading direction not updating
 
 export default class App extends Component {
   
@@ -43,8 +43,13 @@ export default class App extends Component {
       pendingPOI_image: null,
       markers: [],
       currentPOI: null,
-      currentPOIcontent: null
+      currentPOIcontent: null,
+      currentPOI_exit: null
     };
+    this.state.plusIconDimensions = this.state.APP_WIDTH * .25; //calculate icon dimensions based on app dimensions
+    this.state.darkModeIconDimensions = this.state.APP_WIDTH * .15;
+    this.state.POImenuDimensions = 338;
+    this.state.bugIconDimensions = this.state.APP_WIDTH * .1
   }
 
   _getLocationAsync = async () => { //location grabber func, operates as a background process (asynchronously)
@@ -52,7 +57,7 @@ export default class App extends Component {
       {
         enableHighAccuracy: true,
         distanceInterval: .1, //units of degrees lat/lon
-        timeInterval: 100 //updates location every 100ms
+        timeInterval: 10 //updates location every 100ms
       },
 
       newLocation => { //update location
@@ -61,7 +66,8 @@ export default class App extends Component {
           latitude: coords.latitude, //rip lat and lon from newLocation var stored in coords
           longitude: coords.longitude,
           latitudeDelta: 0.01, //establish deltas
-          longitudeDelta: 0.01
+          longitudeDelta: 0.01,
+          heading: coords.heading
         };
         this.setState({regionState: region}); //push region updates to state struct
       },
@@ -71,15 +77,15 @@ export default class App extends Component {
   };
 
   async componentDidMount() { //when component is mounted
-    console.log("AW ", this.state.APP_WIDTH);
-    console.log("AH ", this.state.APP_HEIGHT);
+    console.log("FW ", this.state.APP_WIDTH);
+    console.log("FH ", this.state.APP_HEIGHT);
     this.state.didMount = true; //update state var
 
-    db.ref('/poi').on('value', (snapshot) => {
+    db.ref('/poi').on('value', (snapshot) => { //pull markers from RTDB
       this.state.markers = snapshot.val();
-      this.state.markers = Object.keys(this.state.markers).map((key) => [String(key), this.state.markers[key]]);
+      this.state.markers = Object.keys(this.state.markers).map((key) => [String(key), this.state.markers[key]]); //map object string identifiers assigned by Firebase to object info
       let markersTemp = []
-      for (i = 0; i < this.state.markers.length; i++) {
+      for (i = 0; i < this.state.markers.length; i++) { //push POI objects to RTDB
         markersTemp.push(this.state.markers[i][1]);
       }
       this.state.markers = markersTemp;
@@ -89,7 +95,7 @@ export default class App extends Component {
 
     if (status === "granted") { //verify user response, then begin asynchronous tracking
       this._getLocationAsync();
-    } else {
+    } else { //reaches if perms denied
       Alert.alert("You need to allow location permissions for the map to function properly!\n\nTo change this, visit the Settings app, find this app towards the bottom, and enable.");
     }
     console.log("location perms ", status);
@@ -100,6 +106,7 @@ export default class App extends Component {
   initiate_addPOI = () => { //when "add POI" button is pressed, triggers this function
     this.state.currentPOI = null;
     this.state.currentPOIcontent = null;
+    this.state.currentPOI_exit = null;
     console.log("setting POI to ", !this.state.displayPOImenu);
     this.state.displayPOImenu = !this.state.displayPOImenu; //flip POI menu display state
     this.state.pendingPOI_skillLevel = null, //reset pending POI state variables
@@ -116,30 +123,30 @@ export default class App extends Component {
   }
 
   initBugReport = () => {
-    text("17085574833", "Bug Report or Suggestion:\n");
+    text("17085574833", "Bug Report or Suggestion:\n"); //prompt with text window/prefilled message
   }
 
-  selectImage = async () => {
-    const {status} = await Permissions.askAsync(Permissions.CAMERA); //prompt for location perms
+  selectImage = async () => { //triggered by select image button on POI menu
+    const {status} = await Permissions.askAsync(Permissions.CAMERA); //prompt for cam perms
     console.log("cam perms ", status);
-    if (status !== "granted") {
+    if (status !== "granted") { //if perms denied
       Alert.alert("You need to allow camera permissions to take pictures of the cool skate spots you find!\n\nTo change this, visit the Settings app, find this app towards the bottom, and enable.");
     }
-    console.log("selecting image");
+
     let result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      mediaTypes: ImagePicker.MediaTypeOptions.All, //allow photo/video
       allowsEditing: true,
-      aspect: [1, 1],
+      aspect: [1, 1], //require square crop
       quality: .5,
       videoMaxDuration: 30
     });
 
-    if (!result.cancelled) {
-      this.state.pendingPOI_image = result.uri;
+    if (!result.cancelled) { //if image submitted
+      this.state.pendingPOI_image = result; //capture image and pend to push
     }
   }
 
-  pushPOIdata = () => {
+  pushPOIdata = () => { //push pending POI data to the RTDB
     if (this.state.pendingPOI_skillLevel != null && this.state.pendingPOI_accessibility != null && this.state.pendingPOI_condition != null
       && this.state.pendingPOI_security != null && this.state.pendingPOI_type && this.state.regionState && this.state.pendingPOI_image) { //verify definition of POI props
       console.log("pushing to RDB");
@@ -159,27 +166,28 @@ export default class App extends Component {
     }
   };
 
-  POIactivationHandler = (poi_obj) => {
-    this.state.currentPOI = <Image
+  POIactivationHandler = (poi_obj) => { //handles activation of a given POI
+    this.state.currentPOI = <Image //renders back image for POI display menu
                               source = {require('./src/components/selectedDisplay.png')} //submit button for POI info
                               style = {{resizeMode: 'contain', position: 'absolute', bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 10, height: 200, width: this.state.APP_WIDTH}}
                             />
   }
 
   render() {
-    this.state.plusIconDimensions = this.state.APP_WIDTH * .25; //calculate icon dimensions based on app dimensions
-    this.state.darkModeIconDimensions = this.state.APP_WIDTH * .15;
-    this.state.POImenuDimensions = /*this.state.APP_WIDTH * .8*/338;
-    this.state.bugIconDimensions = this.state.APP_WIDTH * .1
-    let markerCond = null;
+    Platform.OS === 'ios' && Constants.statusBarHeight > 40 ? //check if iOS phone has "notch", set dark/light mode to status bar icons if true
+    this.state.darkModeEnabled ? StatusBar.setBarStyle('light-content', true) : StatusBar.setBarStyle('dark-content', true)
+    : null
+
+    let markerCond = null; //display marker only if location data has begun to be received
     if (this.state.regionState) {
-      markerCond = <Marker //marker condition - checked using ternary expression in render()->return() - displayed if regionState defined
-                            coordinate = {this.state.regionState}
-                            image = {require('./src/components/board.png')}
-                            flat = {true}
-                        />
+      markerCond =  <MapView.Marker.Animated //marker condition - checked using ternary expression in render()->return() - displayed if regionState defined
+                      coordinate = {this.state.regionState}
+                      image = {require('./src/components/board.png')}
+                      flat
+                      rotation = {this.state.regionState.heading === null ? 0 : this.state.regionState.heading} //rotate according to pulled heading from async tracking func
+                    />
     }
-    let POIcond = null;
+    let POIcond = null; //null-def conditional displays
     let POIcontent = null;
     let POIsubmit = null;
     let POIimageUpload = null;
@@ -207,7 +215,7 @@ export default class App extends Component {
                         bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions,
                         left: (this.state.APP_WIDTH - this.state.POImenuDimensions)/2,
                         width: this.state.POImenuDimensions,
-                        height: .5 * this.state.APP_HEIGHT,
+                        height: 452,
                         flexDirection: 'row', 
                         flexWrap: 'wrap'
                       }}
@@ -248,7 +256,7 @@ export default class App extends Component {
                       </View>
 
                       <View //security slider wrapper
-                        style = {{/*paddingBottom: this.state.APP_HEIGHT * .01, */paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
+                        style = {{paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
                       >
                         <Text style = {{alignSelf: 'center', fontWeight: 'bold'}}>Security</Text>
 
@@ -263,7 +271,7 @@ export default class App extends Component {
                       </View>
 
                       <View //condition slider wrapper
-                        style = {{/*paddingBottom: this.state.APP_HEIGHT * .01, */paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
+                        style = {{paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
                       >
                         <Text style = {{alignSelf: 'center', fontWeight: 'bold'}}>Condition</Text>
 
@@ -311,7 +319,8 @@ export default class App extends Component {
                       style = {{
                         position: 'absolute',
                         resizeMode: 'contain',
-                        left: this.state.APP_WIDTH/2 + this.state.POImenuDimensions * .04,
+                        left: this.state.APP_HEIGHT <= 667 ? 
+                                this.state.APP_WIDTH/2 + this.state.POImenuDimensions * .04 + 5 : this.state.APP_WIDTH/2 + this.state.POImenuDimensions * .04,
                         bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 140,
                         width: this.state.APP_WIDTH * .35
                       }}
@@ -329,7 +338,7 @@ export default class App extends Component {
                     </Text>
                   </TouchableOpacity>
 
-      POIsubmit = <TouchableOpacity onPress = {this.pushPOIdata}> 
+      POIsubmit = <TouchableOpacity onPress = {this.pushPOIdata}>  
                         <Image
                           source = {require('./src/components/submitPOI.png')} //submit button for POI info
                           style = {{
@@ -338,7 +347,7 @@ export default class App extends Component {
                             height: this.state.POImenuDimensions * .2,
                             resizeMode: 'contain',
                             left: this.state.APP_WIDTH/2 + this.state.POImenuDimensions * .15,
-                            bottom: this.state.APP_HEIGHT * .22
+                            bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + this.state.POImenuDimensions * .2
                           }}
                         />
                       </TouchableOpacity>
@@ -437,38 +446,29 @@ export default class App extends Component {
     return (
       <View style = {styles.container}>
 
-        {
-          Platform.OS === 'ios' && Constants.statusBarHeight > 40 ?
-          this.state.darkModeEnabled ? StatusBar.setBarStyle('light-content', true) : StatusBar.setBarStyle('dark-content', true)
-          : null
-        }
-
         <View style = {{position: 'absolute', left: 0, top: 40, zIndex: 1}}>
+          <TouchableOpacity onPress = {this.initBugReport} style = {this.state.APP_HEIGHT <= 667 ? {flexDirection: "row", paddingLeft: 15} : null}> 
+            <Image  //bug report image
+                style = {{
+                  height: this.state.bugIconDimensions, //set using previously calculated icon dimensions
+                  width: this.state.bugIconDimensions,
+                  resizeMode: 'contain',
+                  paddingRight: this.state.APP_WIDTH * .3
+                }}
+                source = {require('./src/components/reportbug.png')}
+              />
 
-        <TouchableOpacity onPress = {this.initBugReport}>
-
-          <Image  //bug report button
-              style = {{
-                height: this.state.bugIconDimensions, //set using previously calculated icon dimensions
-                width: this.state.bugIconDimensions,
-                resizeMode: 'contain',
-                paddingRight: this.state.APP_WIDTH * .3
-              }}
-              source = {require('./src/components/reportbug.png')}
-            />
-
-            <Text //bug report text
-              style = {{
-                color: this.state.darkModeEnabled ? "#fff" : this.state.neutralColor,
-                fontSize: 11,
-                textAlign: "center"
-              }}
-            >
-              Give a Suggestion{'\n'}Report a bug
-            </Text>
-
+              <Text //bug report text
+                style = {{
+                  color: this.state.darkModeEnabled ? "#fff" : this.state.neutralColor, //change based on mode status
+                  fontSize: 11,
+                  textAlign: "center",
+                  paddingTop: this.state.APP_HEIGHT <= 667 ? 5 : 0 //pad text on top on smaller phones (align with image)
+                }}
+              >
+                Give a Suggestion{'\n'}Report a bug
+              </Text>
           </TouchableOpacity>
-
         </View>
 
         <MapView
@@ -482,7 +482,7 @@ export default class App extends Component {
         >
           {markerCond /*conditionally render markerCond dependent upon the definition status of regionState*/}
           
-          {this.state.markers.map((marker, index) => (
+          {this.state.markers.map((marker, index) => ( //render markers pulled from RTDB and initialize abstracted activation handler functions
             marker.regionState ? 
             <Marker
               key = {index}
@@ -495,8 +495,9 @@ export default class App extends Component {
 
         </MapView>
 
-        {this.state.currentPOI}
+        {this.state.currentPOI /*conditional POI display/info menu renders*/}
         {this.state.currentPOIcontent}
+        {this.state.currentPOI_exit}
         
         {POIcond /*conditionally render POI menu*/}
         {POIcontent}
@@ -513,7 +514,7 @@ export default class App extends Component {
               width: this.state.plusIconDimensions,
               resizeMode: 'contain'
             }}
-            source = {this.state.darkModeEnabled ? 
+            source = {this.state.darkModeEnabled ?
                         this.state.displayPOImenu ? require('./src/components/dmplus_x.png') : require('./src/components/dmplus.png')
                         :
                         this.state.displayPOImenu ? require('./src/components/plus_x.png') : require('./src/components/plus.png')
@@ -531,7 +532,7 @@ export default class App extends Component {
               width: this.state.darkModeIconDimensions,
               resizeMode: 'contain'
             }}
-            source = {this.state.darkModeEnabled ? require('./src/components/lm.png') : require('./src/components/dm.png')} //ternary identifies proper icon based on mode
+            source = {this.state.darkModeEnabled ? require('./src/components/lm.png') : require('./src/components/dm.png')} //ternary identifies proper icon based on current mode
           />
         </TouchableOpacity>
 
@@ -544,6 +545,6 @@ const styles = StyleSheet.create({
   
   container: {
     flex: 1,
-    backgroundColor: "#fff"
+    backgroundColor: "#000"
   }
 });
