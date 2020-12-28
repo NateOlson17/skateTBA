@@ -1,10 +1,13 @@
 {
   "expo": {
     "name": "skateTBA_expo",
+    "description": "Provides easy access to numerous local skate spots, and allows users to add their own!",
     "slug": "skateTBA_expo",
-    "version": "1.0.0",
+    "privacy": "unlisted",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "backgroundColor": "#000000",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -17,8 +20,15 @@
       "**/*"
     ],
     "ios": {
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Needed to track user location in order to show their position on the map, and properly display user skateboard icon/location.",
+        "NSLocationUsageDescription": "Used to display user location to show position relative to points of interest on the main map.",
+        "NSCameraUsageDescription": "Used to allow users to upload images and videos of good skating locations near them.",
+        "NSMicrophoneUsageDescription":  "Used to allow sound when a user uploads a video for a point of interest."
+      },
       "supportsTablet": true,
-      "bundleIdentifier": "com.nateo.skateTBA"
+      "bundleIdentifier": "com.nateo.skateTBA",
+      "buildNumber": "0.1.0"
     },
     "android": {
       "adaptiveIcon": {

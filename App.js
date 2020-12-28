@@ -12,10 +12,12 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
 
-//work on selectedDisplay
 //comments + img/vid addition for poi when marked on map
 //heading direction not updating
 //prompt for rating when leaving spot
+
+//icon/splash/etc (icon 1024x1024)
+//in app.json, change: name, slug, bundleID (change in firebase as well)
 
 export default class App extends Component {
   
