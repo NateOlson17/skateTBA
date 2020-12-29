@@ -11,10 +11,12 @@ import RadioButtonRN from 'radio-buttons-react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 //comments + img/vid addition for poi when marked on map
 //heading direction not updating
 //prompt for rating when leaving spot
+//about/rules/settings
 
 //icon/splash/etc (icon 1024x1024)
 //in app.json, change: name, slug, bundleID (change in firebase as well)
@@ -25,34 +27,48 @@ export default class App extends Component {
     super(props);
     Text.allowFontScaling = false; // Disallow dynamic type on iOS
     this.state = {
+      //dimension reading and proportion fallback determinations
       APP_WIDTH: Dimensions.get('window').width,
       APP_HEIGHT: Dimensions.get('window').height,
       plusIconDimensions: 144, //height/width of icons in pixels - initialized later - these are fallback values
       darkModeIconDimensions: 57,
-      POImenuDimensions: 350,
+      POImenuDimensions: 338,
       bugIconDimensions: 50,
+
       posColor: '#6cccdc', //blue theme color
       negColor: '#dc6c6c', //red theme color
       neutralColor: '#041c4b', //dark blue theme color
+
+      //general main process reference storage
       regionState: null, //carries region lat/lon and corresponding deltas
       didMount: false, //tracks component mount status for processes to eliminate memory leakage
       darkModeEnabled: false,
       displayPOImenu: false,
-      pendingPOI_skillLevel: null, //null-define unentered POI states
+
+      //data holds for user inputs awauting RTDB push
+      pendingPOI_skillLevel: null, //null-define unentered POI states by default
       pendingPOI_accessibility: null,
       pendingPOI_type: null,
       pendingPOI_condition: null,
       pendingPOI_security: null,
       pendingPOI_image: null,
+
+      //used for database pull (for POIs) on component mount
       markers: [],
+
+      //selected POI display information
       currentPOI: null,
       currentPOIcontent: null,
-      currentPOI_exit: null
+      currentPOI_exit: null,
+      currentPOI_images: null,
+      currentPOI_images_exit: null,
+      currentPOI_images_content: null
     };
+
     this.state.plusIconDimensions = this.state.APP_WIDTH * .25; //calculate icon dimensions based on app dimensions
     this.state.darkModeIconDimensions = this.state.APP_WIDTH * .15;
-    this.state.POImenuDimensions = 338;
     this.state.bugIconDimensions = this.state.APP_WIDTH * .1
+    Text.allowFontScaling = false;
   }
 
   _getLocationAsync = async () => { //location grabber func, operates as a background process (asynchronously)
@@ -80,10 +96,9 @@ export default class App extends Component {
   };
 
   async componentDidMount() { //when component is mounted
-    console.log("FW ", this.state.APP_WIDTH);
+    console.log("FW ", this.state.APP_WIDTH); //display frame dimensions in console
     console.log("FH ", this.state.APP_HEIGHT);
     this.state.didMount = true; //update state var
-
     db.ref('/poi').on('value', (snapshot) => { //pull markers from RTDB
       this.state.markers = snapshot.val();
       this.state.markers = Object.keys(this.state.markers).map((key) => [String(key), this.state.markers[key]]); //map object string identifiers assigned by Firebase to object info
@@ -107,9 +122,7 @@ export default class App extends Component {
   async componentWillUnmount() {this.state.didMount = false;} //update state (checked for in _getLocationAsync)
 
   initiate_addPOI = () => { //when "add POI" button is pressed, triggers this function
-    this.state.currentPOI = null;
-    this.state.currentPOIcontent = null;
-    this.state.currentPOI_exit = null;
+    this.nullifyCurrentPOI(); //remove "current POI" menu/display
     console.log("setting POI to ", !this.state.displayPOImenu);
     this.state.displayPOImenu = !this.state.displayPOImenu; //flip POI menu display state
     this.state.pendingPOI_skillLevel = null, //reset pending POI state variables
@@ -149,7 +162,7 @@ export default class App extends Component {
     }
   }
 
-  pushPOIdata = () => { //push pending POI data to the RTDB
+  pushPOIdata = async () => { //push pending POI data to the RTDB
     if (this.state.pendingPOI_skillLevel != null && this.state.pendingPOI_accessibility != null && this.state.pendingPOI_condition != null
       && this.state.pendingPOI_security != null && this.state.pendingPOI_type && this.state.regionState && this.state.pendingPOI_image) { //verify definition of POI props
       console.log("pushing to RDB");
@@ -159,8 +172,9 @@ export default class App extends Component {
         type: this.state.pendingPOI_type,
         condition: this.state.pendingPOI_condition,
         security: this.state.pendingPOI_security,
-        regionState: this.state.regionState,
-        image: this.state.pendingPOI_image
+        regionState: {latitude: this.state.regionState.latitude, longitude: this.state.regionState.longitude},
+        images: [{data: await this.uriToBase64(this.state.pendingPOI_image.uri), type: this.state.pendingPOI_image.type}],//await promise response from helper func, then push base64 return value
+        comments: []
       });
       this.state.displayPOImenu = false; //withdraw POI menu
       Alert.alert("Your skate spot has been added to the database!😎 \n\n(This is monitored and spam entries will be deleted)");
@@ -173,6 +187,13 @@ export default class App extends Component {
     this.state.currentPOI = null;
     this.state.currentPOI_exit = null;
     this.state.currentPOIcontent = null;
+    this.state.currentPOI_images = null;
+    this.state.currentPOI_images_exit = null;
+  }
+
+  uriToBase64 = async (uripath) => { //uri to base64 image data conversion
+    result = await ImageManipulator.manipulateAsync(uripath, [], {base64: true, compress: .5});
+    return result.base64;
   }
 
   POIactivationHandler = (poi_obj) => { //handles activation of a given POI
@@ -188,69 +209,90 @@ export default class App extends Component {
                                       style = {{resizeMode: 'contain', position: 'absolute', bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions - 123, right: 17, width: this.state.APP_WIDTH * .07}}
                                     />
                                   </TouchableOpacity>
-    this.state.currentPOIcontent =  <View style = {{position: 'absolute', bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 10, height: 200, width: this.state.APP_WIDTH}}>
+    this.state.currentPOIcontent =  <View style = {{position: 'absolute', bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 10, height: 200, width: this.state.APP_WIDTH, flexDirection: 'row'}}>
+                                      <View>
+                                        <View style = {{flexDirection: 'row', paddingTop: 40, paddingLeft: 10}}>
+                                          <Text style = {{fontWeight: 'bold'}}>Accessibility:</Text>
+                                          <View style = {{paddingLeft: 10,}}>
+                                            <Image
+                                              source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
+                                              style = {{resizeMode: 'contain', width: 100, flexBasis: 20}}
+                                            />
+                                            <Image
+                                              source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
+                                              style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: 9 * poi_obj["accessibility"]}}
+                                            />
+                                          </View>
+                                          <Text style = {{fontWeight: 'bold', paddingLeft: 5}}> ({poi_obj["accessibility"]})</Text>
+                                        </View>
 
-                                    <View style = {{flexDirection: 'row', paddingTop: 40, paddingLeft: 10}}>
-                                      <Text style = {{fontWeight: 'bold'}}>Accessibility:</Text>
-                                      <View style = {{paddingLeft: 10,}}>
-                                        <Image
-                                          source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
-                                          style = {{resizeMode: 'contain', width: 100, flexBasis: 20}}
-                                        />
-                                        <Image
-                                          source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
-                                          style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: 9 * poi_obj["accessibility"]}}
-                                        />
+                                        <View style = {{flexDirection: 'row', paddingLeft: 29}}>
+                                          <Text style = {{fontWeight: 'bold'}}>Skill Level:</Text>
+                                          <View style = {{paddingLeft: 10,}}>
+                                            <Image
+                                              source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
+                                              style = {{resizeMode: 'contain', width: 100, flexBasis: 20}}
+                                            />
+                                            <Image
+                                              source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
+                                              style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: 9 * poi_obj["skillLevel"]}}
+                                            />
+                                          </View>
+                                          <Text style = {{fontWeight: 'bold', paddingLeft: 5}}> ({poi_obj["skillLevel"]})</Text>
+                                        </View>
+
+                                        <View style = {{flexDirection: 'row', paddingLeft: 30}}>
+                                          <Text style = {{fontWeight: 'bold'}}>Condition:</Text>
+                                          <View style = {{paddingLeft: 10}}>
+                                            <Image
+                                              source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
+                                              style = {{resizeMode: 'contain', width: 100, flexBasis: 20}}
+                                            />
+                                            <Image
+                                              source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
+                                              style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: 9 * poi_obj["condition"]}}
+                                            />
+                                          </View>
+                                          <Text style = {{fontWeight: 'bold', paddingLeft: 5}}> ({poi_obj["condition"]})</Text>
+                                        </View>
+
+                                        <View style = {{flexDirection: 'row', paddingLeft: 39}}>
+                                          <Text style = {{fontWeight: 'bold'}}>Security:</Text>
+                                          <View style = {{paddingLeft: 10,}}>
+                                            <Image
+                                              source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
+                                              style = {{resizeMode: 'contain', width: 100, flexBasis: 20}}
+                                            />
+                                            <Image
+                                              source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
+                                              style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: 9 * poi_obj["security"]}}
+                                            />
+                                          </View>
+                                          <Text style = {{fontWeight: 'bold', paddingLeft: 8}}>({poi_obj["security"]})</Text>
+                                        </View>
                                       </View>
-                                      <Text style = {{fontWeight: 'bold', paddingLeft: 5}}> ({poi_obj["accessibility"]})</Text>
-                                    </View>
 
-                                    <View style = {{flexDirection: 'row', paddingLeft: 29}}>
-                                      <Text style = {{fontWeight: 'bold'}}>Skill Level:</Text>
-                                      <View style = {{paddingLeft: 10,}}>
-                                        <Image
-                                          source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
-                                          style = {{resizeMode: 'contain', width: 100, flexBasis: 20}}
-                                        />
-                                        <Image
-                                          source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
-                                          style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: 9 * poi_obj["skillLevel"]}}
-                                        />
+                                      <View>
+                                        <TouchableOpacity onPress = {this.enableCurrentPOI_images}>
+                                          <Text>IMAGES</Text>
+                                        </TouchableOpacity>
                                       </View>
-                                      <Text style = {{fontWeight: 'bold', paddingLeft: 5}}> ({poi_obj["skillLevel"]})</Text>
-                                    </View>
-
-                                    <View style = {{flexDirection: 'row', paddingLeft: 30}}>
-                                      <Text style = {{fontWeight: 'bold'}}>Condition:</Text>
-                                      <View style = {{paddingLeft: 10}}>
-                                        <Image
-                                          source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
-                                          style = {{resizeMode: 'contain', width: 100, flexBasis: 20}}
-                                        />
-                                        <Image
-                                          source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
-                                          style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: 9 * poi_obj["condition"]}}
-                                        />
-                                      </View>
-                                      <Text style = {{fontWeight: 'bold', paddingLeft: 5}}> ({poi_obj["condition"]})</Text>
-                                    </View>
-
-                                    <View style = {{flexDirection: 'row', paddingLeft: 39}}>
-                                      <Text style = {{fontWeight: 'bold'}}>Security:</Text>
-                                      <View style = {{paddingLeft: 10,}}>
-                                        <Image
-                                          source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
-                                          style = {{resizeMode: 'contain', width: 100, flexBasis: 20}}
-                                        />
-                                        <Image
-                                          source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
-                                          style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: 9 * poi_obj["security"]}}
-                                        />
-                                      </View>
-                                      <Text style = {{fontWeight: 'bold', paddingLeft: 8}}>({poi_obj["security"]})</Text>
-                                    </View>
 
                                     </View>
+  }
+
+  enableCurrentPOI_images = () => {
+    this.state.currentPOI_images = <Image //renders back image for POI display menu
+                              source = {require('./src/components/selectedDisplay.png')} //submit button for POI info
+                              style = {{resizeMode: 'contain', position: 'absolute', bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 10 + 200, height: 200, width: this.state.APP_WIDTH}}
+                            />
+    this.state.currentPOI_images_exit =  <TouchableOpacity onPress = {() => {this.state.currentPOI_images = null; this.state.currentPOI_images_exit = null;}} style = {{width: this.state.APP_WIDTH * .07, position: 'absolute', bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions - 123 + 200, right: 17}}>
+                                    <Image
+                                      source = {require('./src/components/pointDisplay_x.png')} //submit button for POI info
+                                      style = {{resizeMode: 'contain', width: this.state.APP_WIDTH * .07}}
+                                    />
+                                  </TouchableOpacity>
+    this.state.currentPOI_images_content = <View style = {{position: 'absolute', width: this.state.APP_WIDTH, height: 200, bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 10 + 200}}></View>
   }
 
   render() {
@@ -308,7 +350,7 @@ export default class App extends Component {
                           flexDirection: "column"
                         }}
                       >
-                        <Text style = {{alignSelf: 'center', fontWeight: 'bold'}}>Accessibility</Text>
+                        <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold'}}>Accessibility</Text>
 
                         <Slider min = {0} max = {10} step = {1} //accessibility slider
                           valueOnChange = {value => {this.state.pendingPOI_accessibility = value}}
@@ -323,7 +365,7 @@ export default class App extends Component {
                       <View //skillLevel slider wrapper
                         style = {{paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
                       >
-                        <Text style = {{alignSelf: 'center', fontWeight: 'bold'}}>Skill Level</Text>
+                        <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold'}}>Skill Level</Text>
 
                         <Slider min = {0} max = {10} step = {1} //skillLevel slider
                           valueOnChange = {value => {this.state.pendingPOI_skillLevel = value}}
@@ -338,7 +380,7 @@ export default class App extends Component {
                       <View //security slider wrapper
                         style = {{paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
                       >
-                        <Text style = {{alignSelf: 'center', fontWeight: 'bold'}}>Security</Text>
+                        <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold'}}>Security</Text>
 
                         <Slider min = {0} max = {10} step = {1} //security slider
                           valueOnChange = {value => {this.state.pendingPOI_security = value}}
@@ -353,7 +395,7 @@ export default class App extends Component {
                       <View //condition slider wrapper
                         style = {{paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
                       >
-                        <Text style = {{alignSelf: 'center', fontWeight: 'bold'}}>Condition</Text>
+                        <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold'}}>Condition</Text>
 
                         <Slider min = {0} max = {10} step = {1} //condition slider
                           valueOnChange = {value => {this.state.pendingPOI_condition = value}}
@@ -387,7 +429,7 @@ export default class App extends Component {
                         selectedBtn = {(e) => {this.state.pendingPOI_type = e['label']}} //set POI type state variable on radio button select
                         animationTypes = {['pulse', 'rotate']}
                       /> 
-                      <Text style = {{alignSelf: 'center', fontWeight: 'bold', lineHeight: 38, paddingLeft: this.state.POImenuDimensions * .035}}>
+                      <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold', lineHeight: 38, paddingLeft: this.state.POImenuDimensions * .035}}>
                         Ramp{'\n'}Rail{'\n'}Ledge{'\n'}Gap{'\n'}
                       </Text>
 
@@ -406,6 +448,7 @@ export default class App extends Component {
                       }}
                     />
                     <Text 
+                      allowFontScaling = {false}
                       style = {{
                         alignSelf: 'center', 
                         fontWeight: 'bold', 
@@ -578,6 +621,9 @@ export default class App extends Component {
         {this.state.currentPOI /*conditional POI display/info menu renders*/}
         {this.state.currentPOIcontent}
         {this.state.currentPOI_exit}
+        {this.state.currentPOI_images}
+        {this.state.currentPOI_images_content}
+        {this.state.currentPOI_images_exit}
         
         {POIcond /*conditionally render POI menu*/}
         {POIcontent}
