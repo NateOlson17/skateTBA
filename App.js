@@ -106,6 +106,7 @@ export default class App extends Component {
       let markersTemp = []
       for (i = 0; i < this.state.markers.length; i++) { //push POI objects to RTDB
         markersTemp.push(this.state.markers[i][1]);
+        this.state.markers[i][1].id = this.state.markers[i][0];
       }
       this.state.markers = markersTemp;
     });
@@ -199,7 +200,8 @@ export default class App extends Component {
   }
 
   POIactivationHandler = (poi_obj) => { //handles activation of a given POI
-    console.log('POI activated; object =>\n');
+    console.log('POI activated; id =>');
+    console.log(poi_obj.id);
     this.state.currentPOI_images = null;
     this.state.currentPOI_images_content = null;
     this.state.currentPOI_images_exit = null;
@@ -313,6 +315,33 @@ export default class App extends Component {
 
   addPOIimage = async (poi_obj) => {
     console.log("adding image");
+    let currentImages = [];
+    db.ref('/poi').on('value', (snapshot) => { //pull markers from RTDB
+      currentImages = snapshot.val()[poi_obj.id].images;
+    });
+
+    let imageTemp = null;
+
+    const {status} = await Permissions.askAsync(Permissions.CAMERA); //prompt for cam perms
+    console.log("cam perms ", status);
+    if (status !== "granted") { //if perms denied
+      Alert.alert("You need to allow camera permissions to take pictures of the cool skate spots you find!\n\nTo change this, visit the Settings app, find this app towards the bottom, and enable.");
+    }
+
+    let result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.All, //allow photo/video
+      allowsEditing: true,
+      aspect: [1, 1], //require square crop
+      quality: .5,
+      videoMaxDuration: 30
+    });
+
+    if (!result.cancelled) { //if image submitted
+      imageTemp = {key: currentImages.length.toString(), data: await this.uriToBase64(result.uri), type: result.type}; //capture image and pend to push
+    }
+    currentImages.push(imageTemp);
+
+    db.ref(`/poi/${poi_obj.id}`).update({images: currentImages});
   }
 
   render() {
