@@ -13,7 +13,7 @@ import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
 import * as ImageManipulator from 'expo-image-manipulator';
 
-//comments + img/vid addition for poi when marked on map (ADD KEY PROP)
+//comments addition for poi when marked on map
 //comments window for poi display
 //heading direction not updating frequently
 //prompt for rating when leaving area
@@ -64,7 +64,10 @@ export default class App extends Component {
       currentPOI_exit: null,
       currentPOI_images: null,
       currentPOI_images_exit: null,
-      currentPOI_images_content: null
+      currentPOI_images_content: null,
+      currentPOI_comments: null,
+      currentPOI_comments_exit: null,
+      currentPOI_comments_content: null
     };
 
     this.state.plusIconDimensions = this.state.APP_WIDTH * .25; //calculate icon dimensions based on app dimensions
@@ -192,6 +195,9 @@ export default class App extends Component {
     this.state.currentPOI_images = null;
     this.state.currentPOI_images_exit = null;
     this.state.currentPOI_images_content = null;
+    this.state.currentPOI_comments = null;
+    this.state.currentPOI_comments_exit = null;
+    this.state.currentPOI_comments_content = null;
   }
 
   uriToBase64 = async (uripath) => { //uri to base64 image data conversion
@@ -200,8 +206,7 @@ export default class App extends Component {
   }
 
   POIactivationHandler = (poi_obj) => { //handles activation of a given POI
-    console.log('POI activated; id =>');
-    console.log(poi_obj.id);
+    console.log('POI activated; id =>', poi_obj.id);
     this.state.currentPOI_images = null;
     this.state.currentPOI_images_content = null;
     this.state.currentPOI_images_exit = null;
@@ -278,12 +283,33 @@ export default class App extends Component {
                                         </View>
                                       </View>
 
-                                      <View>
+                                      <View style = {{marginTop: 45, marginLeft: 20}}>
                                         <TouchableOpacity onPress = {() => this.enableCurrentPOI_images(poi_obj)}>
-                                          <Text>IMAGES</Text>
+                                          <Image
+                                            source = {require('./src/components/viewPhotos.png')}
+                                            style = {{resizeMode: 'contain', height: 50, width: 50}}
+                                          />
                                         </TouchableOpacity>
                                         <TouchableOpacity onPress = {() => this.addPOIimage(poi_obj)}>
-                                          <Text>ADD IMAGE</Text>
+                                          <Image
+                                            source = {require('./src/components/addPhoto.png')}
+                                            style = {{resizeMode: 'contain', height: 40, width: 40, marginLeft: 5}}
+                                          />
+                                        </TouchableOpacity>
+                                      </View>
+
+                                      <View style = {{marginTop: 45, marginLeft: 5}}>
+                                        <TouchableOpacity onPress = {() => this.enableCurrentPOI_comments(poi_obj)}>
+                                          <Image
+                                            source = {require('./src/components/viewComments.png')}
+                                            style = {{resizeMode: 'contain', height: 50, width: 50}}
+                                          />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity onPress = {() => this.addPOIcomment(poi_obj)}>
+                                          <Image
+                                            source = {require('./src/components/addComment.png')}
+                                            style = {{resizeMode: 'contain', height: 40, width: 40, marginLeft: 5}}
+                                          />
                                         </TouchableOpacity>
                                       </View>
 
@@ -291,7 +317,10 @@ export default class App extends Component {
   }
 
   enableCurrentPOI_images = (poi_obj) => {
-    console.log("DISPLAYING IMAGES");
+    console.log("displaying images");
+    this.state.currentPOI_comments = null;
+    this.state.currentPOI_comments_content = null;
+    this.state.currentPOI_comments_exit = null;
     this.state.currentPOI_images = <Image //renders back image for POI display menu
                                       source = {require('./src/components/selectedDisplay.png')} //submit button for POI info
                                       style = {{resizeMode: 'contain', position: 'absolute', bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 10 + 200, height: 200, width: this.state.APP_WIDTH}}
@@ -342,6 +371,34 @@ export default class App extends Component {
     currentImages.push(imageTemp);
 
     db.ref(`/poi/${poi_obj.id}`).update({images: currentImages});
+  }
+
+  enableCurrentPOI_comments = (poi_obj) => {
+    console.log("displaying comments");
+    console.log(poi_obj.comments);
+    this.state.currentPOI_images = null;
+    this.state.currentPOI_images_content = null;
+    this.state.currentPOI_images_exit = null;
+    this.state.currentPOI_comments =  <Image //renders back image for POI display menu
+                                        source = {require('./src/components/selectedDisplay.png')}
+                                        style = {{resizeMode: 'contain', position: 'absolute', bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 10 + 200, height: 200, width: this.state.APP_WIDTH}}
+                                      />
+    this.state.currentPOI_comments_exit = <TouchableOpacity onPress = {() => {this.state.currentPOI_comments = null; this.state.currentPOI_comments_content = null; this.state.currentPOI_comments_exit = null;}} style = {{position: 'absolute', bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 370, right: 20, width: this.state.APP_WIDTH * .07, zIndex: 5}}>
+                                            <Image
+                                              source = {require('./src/components/pointDisplay_x.png')} //submit button for POI info
+                                              style = {{resizeMode: 'contain', height: this.state.APP_WIDTH * .07, width: this.state.APP_WIDTH * .07}}
+                                            />
+                                          </TouchableOpacity>
+    this.state.currentPOI_comments_content =  <View style = {{position: 'absolute', bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 10 + 200, height: 200, width: this.state.APP_WIDTH}}>
+                                                {poi_obj.comments ? 
+                                                <Text>COMMENTS</Text>
+                                                :
+                                                <Text allowFontScaling = {false} style = {{alignSelf: "center"}}>NO COMMENTS</Text>}
+                                              </View>
+  }
+
+  addPOIcomment = (poi_obj) => {
+    console.log("adding comment");
   }
 
   render() {
@@ -674,6 +731,9 @@ export default class App extends Component {
         {this.state.currentPOI_images}
         {this.state.currentPOI_images_content}
         {this.state.currentPOI_images_exit}
+        {this.state.currentPOI_comments}
+        {this.state.currentPOI_comments_content}
+        {this.state.currentPOI_comments_exit}
         
         {POIcond /*conditionally render POI menu*/}
         {POIcontent}
