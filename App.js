@@ -337,7 +337,7 @@ export default class App extends Component {
                                                 data = {poi_obj.images}
                                                 renderItem = {({ item }) => (<Image source = {{uri: `data:image/jpeg;base64,${item.data}`}} style = {{zIndex: 5, height: 140, width: 140, resizeMode: 'contain', alignSelf: 'center', marginRight: 15}} />)}
                                                 horizontal = {true}
-                                                initialNumToRender = {10}
+                                                initialNumToRender = {5}
                                               />
                                             </View>
   }
@@ -389,12 +389,20 @@ export default class App extends Component {
                                               style = {{resizeMode: 'contain', height: this.state.APP_WIDTH * .07, width: this.state.APP_WIDTH * .07}}
                                             />
                                           </TouchableOpacity>
-    this.state.currentPOI_comments_content =  <View style = {{position: 'absolute', bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 10 + 200, height: 200, width: this.state.APP_WIDTH}}>
-                                                {poi_obj.comments ? 
-                                                <Text>COMMENTS</Text>
+    this.state.currentPOI_comments_content =  poi_obj.comments ? 
+                                                <View style = {{position: 'absolute', width: this.state.APP_WIDTH, height: 200, bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 10 + 200, justifyContent: 'center', alignContent: 'center'}}>
+                                                  <FlatList
+                                                    style = {{paddingLeft: 20, zIndex: 6, marginTop: 40}}
+                                                    data = {poi_obj.comments}
+                                                    renderItem = {({ item }) => (<Text style = {{width: 200, height: 180}} allowFontScaling = {false}>{item}</Text>)}
+                                                    horizontal = {true}
+                                                    initialNumToRender = {5}
+                                                  />
+                                                </View>
                                                 :
-                                                <Text allowFontScaling = {false} style = {{alignSelf: "center"}}>NO COMMENTS</Text>}
-                                              </View>
+                                                <View style = {{position: 'absolute', bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 10 + 200, height: 200, width: this.state.APP_WIDTH}}>
+                                                  <Text allowFontScaling = {false} style = {{alignSelf: "center"}}>NO COMMENTS</Text>
+                                                </View>
   }
 
   addPOIcomment = (poi_obj) => {
