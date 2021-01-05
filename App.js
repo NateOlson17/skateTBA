@@ -1,5 +1,5 @@
 import React, { Component } from "react"; //importing necessary libraries
-import { StyleSheet, View, Image, TouchableOpacity, Text, Alert, StatusBar, Platform, FlatList } from "react-native";
+import { StyleSheet, View, Image, TouchableOpacity, Text, Alert, StatusBar, Platform, FlatList, Animated } from "react-native";
 import { Dimensions } from 'react-native';
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
@@ -21,8 +21,37 @@ import * as ImageManipulator from 'expo-image-manipulator';
 //add star rating or allow users to change ratings? otherwise one user sets ratings forever
 //filters
 
+//move FH/FW out of state
+//keep working on styles
+//condense menus (tri-variable)
+//show primary image when uploading
+
 //icon/splash/etc (icon 1024x1024)
 //in app.json, change: name, slug, bundleID (change in firebase as well)
+
+const darkMapStyle = [ //generate dark map style (stored locally)
+  {"elementType": "geometry", "stylers": [{"color": "#242f3e"}]},
+  {"elementType": "labels.text.fill", "stylers": [{"color": "#746855"}]},
+  {"elementType": "labels.text.stroke", "stylers": [{"color": "#242f3e"}]},
+  {"featureType": "administrative.locality", "elementType": "labels.text.fill", "stylers": [{"color": "#d59563"}]},
+  {"featureType": "poi", "elementType": "labels.text.fill", "stylers": [{"color": "#d59563"}]},
+  {"featureType": "poi.park", "elementType": "geometry", "stylers": [{"color": "#263c3f"}]},
+  {"featureType": "poi.park", "elementType": "labels.text.fill", "stylers": [{"color": "#6b9a76"}]},
+  {"featureType": "road", "elementType": "geometry", "stylers": [{"color": "#38414e"}]},
+  {"featureType": "road", "elementType": "geometry.stroke", "stylers": [{"color": "#212a37"}]},
+  {"featureType": "road", "elementType": "labels.text.fill", "stylers": [{"color": "#9ca5b3"}]},
+  {"featureType": "road.highway", "elementType": "geometry", "stylers": [{"color": "#746855"}]},
+  {"featureType": "road.highway", "elementType": "geometry.stroke", "stylers": [{"color": "#1f2835"}]},
+  {"featureType": "road.highway", "elementType": "labels.text.fill", "stylers": [{"color": "#f3d19c"}]},
+  {"featureType": "transit", "elementType": "geometry", "stylers": [{"color": "#2f3948"}]},
+  {"featureType": "transit.station", "elementType": "labels.text.fill", "stylers": [{"color": "#d59563"}]},
+  {"featureType": "water", "elementType": "geometry", "stylers": [{"color": "#17263c"}]},
+  {"featureType": "water", "elementType": "labels.text.fill", "stylers": [{"color": "#515c6d"}]},
+  {"featureType": "water", "elementType": "labels.text.stroke", "stylers": [{"color": "#17263c"}]}
+];
+const POS_COLOR = '#6cccdc'; //blue theme color
+const NEG_COLOR = '#dc6c6c'; //red theme color
+const NEUTRAL_COLOR = '#041c4b'; //dark blue theme color
 
 export default class App extends Component {
   
@@ -37,15 +66,12 @@ export default class App extends Component {
       POImenuDimensions: 338,
       bugIconDimensions: 50,
 
-      posColor: '#6cccdc', //blue theme color
-      negColor: '#dc6c6c', //red theme color
-      neutralColor: '#041c4b', //dark blue theme color
-
       //general main process reference storage
       regionState: null, //carries region lat/lon and corresponding deltas
       didMount: false, //tracks component mount status for processes to eliminate memory leakage
       darkModeEnabled: false,
       displayPOImenu: false,
+      addPOImenu: null,
 
       //data holds for user inputs awauting RTDB push
       pendingPOI_skillLevel: null, //null-define unentered POI states by default
@@ -144,6 +170,143 @@ export default class App extends Component {
     this.setState({filterMenu: null}); //remove filter menu
     console.log("setting POI to", !this.state.displayPOImenu);
     this.setState({displayPOImenu: !this.state.displayPOImenu}); //flip POI menu display state
+    if (this.state.displayPOImenu) {this.setState({addPOImenu: null}); return;}
+    this.setState({
+      addPOImenu: <View //wrapper view for POI menu content
+                    style = {{
+                      position: 'absolute',
+                      bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions,
+                      left: (this.state.APP_WIDTH - this.state.POImenuDimensions)/2,
+                      width: this.state.POImenuDimensions,
+                      height: 452,
+                      flexDirection: 'row', 
+                      flexWrap: 'wrap'
+                    }}
+                  >
+
+                    <Image //POI menu bubble image
+                      style = {{
+                        position: 'absolute',
+                        width: this.state.POImenuDimensions,
+                        height: 452,
+                        resizeMode: 'stretch',
+                        bottom: 10
+                      }}
+                      source = {require('./src/components/POI_menu.png')}
+                    />
+
+                    <View style = {{paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5}} /*accessibility slider wrapper*/>
+                      <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold'}}>Accessibility</Text>
+
+                      <Slider min = {0} max = {10} step = {1} //accessibility slider
+                        valueOnChange = {value => {this.setState({pendingPOI_accessibility: value});}}
+                        initialValue = {5}
+                        knobColor = {NEUTRAL_COLOR}
+                        valueLabelsBackgroundColor = {NEUTRAL_COLOR}
+                        inRangeBarColor = {NEG_COLOR}
+                        outOfRangeBarColor = {POS_COLOR}
+                      />
+                    </View>
+
+                    <View style = {{paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5}} /*skillLevel slider wrapper*/>
+                      <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold'}}>Skill Level</Text>
+
+                      <Slider min = {0} max = {10} step = {1} //skillLevel slider
+                        valueOnChange = {value => {this.setState({pendingPOI_skillLevel: value});}}
+                        initialValue = {5}
+                        knobColor = {NEUTRAL_COLOR}
+                        valueLabelsBackgroundColor = {NEUTRAL_COLOR}
+                        inRangeBarColor = {NEG_COLOR}
+                        outOfRangeBarColor = {POS_COLOR}
+                      />
+                    </View>
+
+                    <View style = {{paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5}} /*security slider wrapper*/>
+                      <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold'}}>Security</Text>
+
+                      <Slider min = {0} max = {10} step = {1} //security slider
+                        valueOnChange = {value => {this.setState({pendingPOI_security: value});}}
+                        initialValue = {5}
+                        knobColor = {NEUTRAL_COLOR}
+                        valueLabelsBackgroundColor = {NEUTRAL_COLOR}
+                        inRangeBarColor = {NEG_COLOR}
+                        outOfRangeBarColor = {POS_COLOR}
+                      />
+                    </View>
+
+                    <View style = {{paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5}} /*condition slider wrapper*/>
+                      <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold'}}>Condition</Text>
+
+                      <Slider min = {0} max = {10} step = {1} //condition slider
+                        valueOnChange = {value => {this.setState({pendingPOI_condition: value});}}
+                        initialValue = {5}
+                        knobColor = {NEUTRAL_COLOR}
+                        valueLabelsBackgroundColor = {NEUTRAL_COLOR}
+                        inRangeBarColor = {NEG_COLOR}
+                        outOfRangeBarColor = {POS_COLOR}
+                      />
+                    </View>
+
+                    <View //divider line after sliders on POI menu
+                      style = {{
+                        width: this.state.POImenuDimensions,
+                        backgroundColor: NEUTRAL_COLOR,
+                        height: 1
+                      }}
+                    >
+                    </View>
+                    
+                    <RadioButtonRN //radio button array
+                      style = {{paddingLeft: this.state.POImenuDimensions * .15}}
+                      data = {[
+                        {label: 'Ramp'},
+                        {label: 'Rail'},
+                        {label: 'Ledge'},
+                        {label: 'Gap'}
+                      ]}
+                      box = {false}
+                      icon = {
+                        <Icon //from react-native-vector-icons library
+                          name = "check-circle-o"
+                          size = {25}
+                          color = {POS_COLOR}
+                        />
+                      }
+                      selectedBtn = {(e) => {this.state.pendingPOI_type = e['label']}} //set POI type state variable on radio button select
+                      animationTypes = {['pulse', 'rotate']}
+                    /> 
+                    <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold', lineHeight: 38, paddingLeft: this.state.POImenuDimensions * .035}}>
+                      Ramp{'\n'}Rail{'\n'}Ledge{'\n'}Gap{'\n'}
+                    </Text>
+
+                    <TouchableOpacity onPress = {this.selectImage} style = {{marginTop: 20, justifyContent: 'center', height: 31, width: 150, marginLeft: 40}}>
+                      <Image
+                        source = {this.state.pendingPOI_image ? require('./src/components/uploadimg_pos.png') : require('./src/components/uploadimg_neg.png')} //submit button for POI info
+                        style = {{
+                          resizeMode: 'contain',
+                          width: 150,
+                          position: 'absolute',
+
+                        }}
+                      />
+                      <Text allowFontScaling = {false} style = {{fontWeight: 'bold', alignSelf: 'center'}}>Add Image</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity onPress = {this.pushPOIdata}>  
+                      <Image
+                        source = {require('./src/components/submitPOI.png')} //submit button for POI info
+                        style = {{
+                          position: 'absolute',
+                          width: this.state.POImenuDimensions * .2,
+                          height: this.state.POImenuDimensions * .2,
+                          resizeMode: 'contain',
+                          right: 5,
+                          bottom: 35
+                        }}
+                      />
+                    </TouchableOpacity>
+                  </View>
+    })
   };
 
   darkModeSwitch = () => { //enable dark mode if disabled, and vice versa, called when mode button pressed
@@ -218,6 +381,8 @@ export default class App extends Component {
     this.nullifyCommentMenu();
     this.nullifyImageMenu();
 
+    let accessibilityIndicatorLM = new Animated.Value(0); let skillLevelIndicatorLM = new Animated.Value(0);
+    let securityIndicatorLM = new Animated.Value(0); let conditionIndicatorLM = new Animated.Value(0);
     this.setState({
       currentPOI: <Image //renders back image for POI display menu
                     source = {require('./src/components/selectedDisplay.png')} //submit button for POI info
@@ -240,9 +405,9 @@ export default class App extends Component {
                                       source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
                                       style = {styles.displayBar}
                                     />
-                                    <Image
+                                    <Animated.Image
                                       source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
-                                      style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: 9 * poi_obj["accessibility"]}}
+                                      style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["accessibility"] === 0 ? 1 : accessibilityIndicatorLM}}
                                     />
                                   </View>
                                   <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 5}}> ({poi_obj["accessibility"]})</Text>
@@ -255,9 +420,9 @@ export default class App extends Component {
                                       source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
                                       style = {styles.displayBar}
                                     />
-                                    <Image
+                                    <Animated.Image
                                       source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
-                                      style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: 9 * poi_obj["skillLevel"]}}
+                                      style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["skillLevel"] === 0 ? 1 : skillLevelIndicatorLM}}
                                     />
                                   </View>
                                   <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 5}}> ({poi_obj["skillLevel"]})</Text>
@@ -270,9 +435,9 @@ export default class App extends Component {
                                       source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
                                       style = {styles.displayBar}
                                     />
-                                    <Image
+                                    <Animated.Image
                                       source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
-                                      style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: 9 * poi_obj["condition"]}}
+                                      style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["condition"] === 0 ? 1 : conditionIndicatorLM}}
                                     />
                                   </View>
                                   <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 5}}> ({poi_obj["condition"]})</Text>
@@ -285,9 +450,9 @@ export default class App extends Component {
                                       source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
                                       style = {styles.displayBar}
                                     />
-                                    <Image
+                                    <Animated.Image
                                       source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
-                                      style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: 9 * poi_obj["security"]}}
+                                      style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["security"] === 0 ? 1 : securityIndicatorLM}}
                                     />
                                   </View>
                                   <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 8}}>({poi_obj["security"]})</Text>
@@ -326,6 +491,10 @@ export default class App extends Component {
 
                             </View>
     });
+    Animated.spring(accessibilityIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["accessibility"]}).start();
+    Animated.spring(conditionIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["condition"]}).start();
+    Animated.spring(skillLevelIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["skillLevel"]}).start();
+    Animated.spring(securityIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["security"]}).start();
   };
 
   enableCurrentPOI_images = poi_obj => {
@@ -333,9 +502,15 @@ export default class App extends Component {
     this.nullifyCommentMenu();
 
     this.setState({
-      currentPOI_images:  <Image //renders back image for POI image display menu
+      currentPOI_images:  <Animated.Image //renders back image for POI image display menu
                             source = {require('./src/components/selectedDisplay.png')} //submit button for POI info
-                            style = {styles.POIdisplayAdditionalMenu_BG}
+                            style = {{
+                              resizeMode: 'contain', 
+                              position: 'absolute',  
+                              height: 200, 
+                              width: this.state.APP_WIDTH,
+                              bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 210
+                            }}
                           />,
 
       currentPOI_images_exit: <TouchableOpacity onPress = {() => {this.nullifyImageMenu()}} style = {styles.POIexit_TO_additionalMenu}>
@@ -432,6 +607,7 @@ export default class App extends Component {
 
   changeFilteredList = (condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max) => {
     this.setState({filterMenu: []});
+    console.log("updating filters");
     for (i = 0; i < this.state.markers.length; i++) {
       let currMarker = this.state.markers[i];
       if (currMarker.condition <= condition_max && currMarker.condition >= condition_min && currMarker.security <= security_max 
@@ -500,7 +676,7 @@ export default class App extends Component {
 
   render() {
     Platform.OS === 'ios' && Constants.statusBarHeight > 40 ? //check if iOS phone has "notch", set dark/light mode to status bar icons if true
-    this.state.darkModeEnabled ? StatusBar.setBarStyle('light-content', true) : StatusBar.setBarStyle('dark-content', true)
+      this.state.darkModeEnabled ? StatusBar.setBarStyle('light-content', true) : StatusBar.setBarStyle('dark-content', true)
     : null;
 
     let markerCond = null; //display marker only if location data has begun to be received
@@ -512,263 +688,7 @@ export default class App extends Component {
                       rotation = {this.state.regionState.heading} //rotate according to pulled heading from async tracking func
                     />
     }
-    let POIcond = null; //null-def conditional displays
-    let POIcontent = null;
-    let POIsubmit = null;
-    let POIimageUpload = null;
-    if (this.state.displayPOImenu) { //set POI menu to render only if state variable allows
-      POIcond = <Image //POI menu bubble image
-                  style = {{
-                            position: 'absolute',
-                            bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 7,
-                            left: (this.state.APP_WIDTH - this.state.POImenuDimensions)/2,
-                            width: this.state.POImenuDimensions,
-                            height: /*.5 * this.state.APP_HEIGHT*/452,
-                            resizeMode: 'contain'
-                          }}
-                  source = {require('./src/components/POI_menu.png')}
-                />
-      const radioTypeData = [ //data for POI menu radio boxes
-        {label: 'Ramp'},
-        {label: 'Rail'},
-        {label: 'Ledge'},
-        {label: 'Gap'}
-      ];  
-      POIcontent =  <View //wrapper view for POI menu content
-                      style = {{
-                        position: 'absolute',
-                        bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions,
-                        left: (this.state.APP_WIDTH - this.state.POImenuDimensions)/2,
-                        width: this.state.POImenuDimensions,
-                        height: 452,
-                        flexDirection: 'row', 
-                        flexWrap: 'wrap'
-                      }}
-                    >
-
-                      <View //accessibility slider wrapper
-                        style = {{
-                          paddingLeft: this.state.POImenuDimensions * .05, 
-                          width: this.state.POImenuDimensions * .5, 
-                          flexDirection: "column"
-                        }}
-                      >
-                        <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold'}}>Accessibility</Text>
-
-                        <Slider min = {0} max = {10} step = {1} //accessibility slider
-                          valueOnChange = {value => {this.state.pendingPOI_accessibility = value}}
-                          initialValue = {5}
-                          knobColor = {this.state.neutralColor}
-                          valueLabelsBackgroundColor = {this.state.neutralColor}
-                          inRangeBarColor = {this.state.negColor}
-                          outOfRangeBarColor = {this.state.posColor}
-                        />
-                      </View>
-
-                      <View //skillLevel slider wrapper
-                        style = {{paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
-                      >
-                        <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold'}}>Skill Level</Text>
-
-                        <Slider min = {0} max = {10} step = {1} //skillLevel slider
-                          valueOnChange = {value => {this.state.pendingPOI_skillLevel = value}}
-                          initialValue = {5}
-                          knobColor = {this.state.neutralColor}
-                          valueLabelsBackgroundColor = {this.state.neutralColor}
-                          inRangeBarColor = {this.state.negColor}
-                          outOfRangeBarColor = {this.state.posColor}
-                        />
-                      </View>
-
-                      <View //security slider wrapper
-                        style = {{paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
-                      >
-                        <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold'}}>Security</Text>
-
-                        <Slider min = {0} max = {10} step = {1} //security slider
-                          valueOnChange = {value => {this.state.pendingPOI_security = value}}
-                          initialValue = {5}
-                          knobColor = {this.state.neutralColor}
-                          valueLabelsBackgroundColor = {this.state.neutralColor}
-                          inRangeBarColor = {this.state.negColor}
-                          outOfRangeBarColor = {this.state.posColor}
-                        />
-                      </View>
-
-                      <View //condition slider wrapper
-                        style = {{paddingLeft: this.state.POImenuDimensions * .05, width: this.state.POImenuDimensions * .5, flexDirection: "column"}}
-                      >
-                        <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold'}}>Condition</Text>
-
-                        <Slider min = {0} max = {10} step = {1} //condition slider
-                          valueOnChange = {value => {this.state.pendingPOI_condition = value}}
-                          initialValue = {5}
-                          knobColor = {this.state.neutralColor}
-                          valueLabelsBackgroundColor = {this.state.neutralColor}
-                          inRangeBarColor = {this.state.negColor}
-                          outOfRangeBarColor = {this.state.posColor}
-                        />
-                      </View>
-                      <View //divider line after sliders on POI menu
-                        style = {{
-                          width: this.state.POImenuDimensions,
-                          backgroundColor: this.state.neutralColor,
-                          height: 1
-                        }}
-                      >
-                      </View>
-                      
-                      <RadioButtonRN //radio button array
-                        style = {{paddingLeft: this.state.POImenuDimensions * .15}}
-                        data = {radioTypeData}
-                        box = {false}
-                        icon = {
-                          <Icon //from react-native-vector-icons library
-                            name = "check-circle-o"
-                            size = {25}
-                            color = {this.state.posColor}
-                          />
-                        }
-                        selectedBtn = {(e) => {this.state.pendingPOI_type = e['label']}} //set POI type state variable on radio button select
-                        animationTypes = {['pulse', 'rotate']}
-                      /> 
-                      <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold', lineHeight: 38, paddingLeft: this.state.POImenuDimensions * .035}}>
-                        Ramp{'\n'}Rail{'\n'}Ledge{'\n'}Gap{'\n'}
-                      </Text>
-
-                    </View>
-
-      POIimageUpload =  <TouchableOpacity onPress = {this.selectImage}>
-                    <Image
-                      source = {this.state.pendingPOI_image ? require('./src/components/uploadimg_pos.png') : require('./src/components/uploadimg_neg.png')} //submit button for POI info
-                      style = {{
-                        position: 'absolute',
-                        resizeMode: 'contain',
-                        left: this.state.APP_HEIGHT <= 667 ? 
-                                this.state.APP_WIDTH/2 + this.state.POImenuDimensions * .04 + 5 : this.state.APP_WIDTH/2 + this.state.POImenuDimensions * .04,
-                        bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 140,
-                        width: this.state.APP_WIDTH * .35
-                      }}
-                    />
-                    <Text 
-                      allowFontScaling = {false}
-                      style = {{
-                        alignSelf: 'center', 
-                        fontWeight: 'bold', 
-                        position: 'absolute', 
-                        left: this.state.APP_WIDTH/2 + this.state.POImenuDimensions * .12,
-                        bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + 170
-                      }}
-                    >
-                      Select Image
-                    </Text>
-                  </TouchableOpacity>
-
-      POIsubmit = <TouchableOpacity onPress = {this.pushPOIdata}>  
-                        <Image
-                          source = {require('./src/components/submitPOI.png')} //submit button for POI info
-                          style = {{
-                            position: 'absolute',
-                            width: this.state.POImenuDimensions * .2,
-                            height: this.state.POImenuDimensions * .2,
-                            resizeMode: 'contain',
-                            left: this.state.APP_WIDTH/2 + this.state.POImenuDimensions * .15,
-                            bottom: this.state.APP_HEIGHT * .04 + this.state.plusIconDimensions + this.state.POImenuDimensions * .2
-                          }}
-                        />
-                      </TouchableOpacity>
-    }
-
-    let defaultMapStyle = [] //generate map styles (stored locally)
-    let darkMapStyle = [
-      {
-        "elementType": "geometry",
-        "stylers": [{"color": "#242f3e"}]
-      },
-      {
-        "elementType": "labels.text.fill",
-        "stylers": [{"color": "#746855"}]
-      },
-      {
-        "elementType": "labels.text.stroke",
-        "stylers": [{"color": "#242f3e"}]
-      },
-      {
-        "featureType": "administrative.locality",
-        "elementType": "labels.text.fill",
-        "stylers": [{"color": "#d59563"}]
-      },
-      {
-        "featureType": "poi",
-        "elementType": "labels.text.fill",
-        "stylers": [{"color": "#d59563"}]
-      },
-      {
-        "featureType": "poi.park",
-        "elementType": "geometry",
-        "stylers": [{"color": "#263c3f"}]
-      },
-      {
-        "featureType": "poi.park",
-        "elementType": "labels.text.fill",
-        "stylers": [{"color": "#6b9a76"}]
-      },
-      {
-        "featureType": "road",
-        "elementType": "geometry",
-        "stylers": [{"color": "#38414e"}]
-      },
-      {
-        "featureType": "road",
-        "elementType": "geometry.stroke",
-        "stylers": [{"color": "#212a37"}]
-      },
-      {
-        "featureType": "road",
-        "elementType": "labels.text.fill",
-        "stylers": [{"color": "#9ca5b3"}]
-      },
-      {
-        "featureType": "road.highway",
-        "elementType": "geometry",
-        "stylers": [{"color": "#746855"}]
-      },
-      {
-        "featureType": "road.highway",
-        "elementType": "geometry.stroke",
-        "stylers": [{"color": "#1f2835"}]
-      },
-      {
-        "featureType": "road.highway",
-        "elementType": "labels.text.fill",
-        "stylers": [{"color": "#f3d19c"}]
-      },
-      {
-        "featureType": "transit",
-        "elementType": "geometry",
-        "stylers": [{"color": "#2f3948"}]
-      },
-      {
-        "featureType": "transit.station",
-        "elementType": "labels.text.fill",
-        "stylers": [{"color": "#d59563"}]
-      },
-      {
-        "featureType": "water",
-        "elementType": "geometry",
-        "stylers": [{"color": "#17263c"}]
-      },
-      {
-        "featureType": "water",
-        "elementType": "labels.text.fill",
-        "stylers": [{"color": "#515c6d"}]
-      },
-      {
-        "featureType": "water",
-        "elementType": "labels.text.stroke",
-        "stylers": [{"color": "#17263c"}]
-      }
-    ]
+    
     return (
       <View style = {styles.container}>
 
@@ -787,7 +707,7 @@ export default class App extends Component {
               <Text //bug report text
                 allowFontScaling = {false}
                 style = {{
-                  color: this.state.darkModeEnabled ? "#fff" : this.state.neutralColor, //change based on mode status
+                  color: this.state.darkModeEnabled ? "#fff" : NEUTRAL_COLOR, //change based on mode status
                   fontSize: 11,
                   textAlign: "center",
                   paddingTop: this.state.APP_HEIGHT <= 667 ? 5 : 0 //pad text on top on smaller phones (align with image)
@@ -805,7 +725,7 @@ export default class App extends Component {
           zoomTapEnabled //double tap to zoom
           showsCompass
           style = {{flex: 1}} //fill parent
-          customMapStyle = {this.state.darkModeEnabled ? darkMapStyle : defaultMapStyle} //ternary determines map style based on darkModeEnabled state
+          customMapStyle = {this.state.darkModeEnabled ? darkMapStyle : []} //ternary determines map style based on darkModeEnabled state
         >
           {markerCond /*conditionally render markerCond dependent upon the definition status of regionState*/}
           
@@ -814,7 +734,7 @@ export default class App extends Component {
             <Marker
               key = {index}
               coordinate = {marker.regionState}
-              pinColor = {this.state.posColor}
+              pinColor = {POS_COLOR}
               onPress = {() => {this.POIactivationHandler(this.state.markers[index])}}
             />
             : null
@@ -839,12 +759,8 @@ export default class App extends Component {
         {this.state.currentPOI_comments_content}
         {this.state.currentPOI_comments_exit}
         {this.state.filterMenu}
+        {this.state.addPOImenu}
         
-        {POIcond /*conditionally render POI menu*/}
-        {POIcontent}
-        {POIimageUpload}
-        {POIsubmit}
-
         <TouchableOpacity onPress = {this.initiate_addPOI}>
           <Image  //"add POI" button
             style = {{
@@ -921,14 +837,6 @@ const styles = StyleSheet.create({
     zIndex: 5
   },
 
-  POIdisplayAdditionalMenu_BG: {
-    resizeMode: 'contain', 
-    position: 'absolute', 
-    bottom: FR_H * .04 + PI_DIM + 10 + 200, 
-    height: 200, 
-    width: FR_W
-  },
-
   POIexit_TO_additionalMenu: {
     position: 'absolute', 
     bottom: FR_H * .04 + PI_DIM + 370, 
@@ -941,7 +849,7 @@ const styles = StyleSheet.create({
     position: 'absolute', 
     width: FR_W, 
     height: 200, 
-    bottom: FR_H * .04 + PI_DIM + 10 + 200, 
+    bottom: FR_H * .04 + PI_DIM + 210, 
     justifyContent: 'center', 
     alignContent: 'center'
   }
