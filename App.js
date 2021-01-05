@@ -64,7 +64,7 @@ export default class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      //general main process reference storage
+      //general main process dynamic reference storage
 
       regionState: null, //carries region lat/lon and corresponding deltas
       didMount: false, //tracks component mount status for processes to eliminate memory leakage
@@ -156,7 +156,7 @@ export default class App extends Component {
 
   initiate_addPOI = () => { //when "add POI" button is pressed, triggers this function
     this.nullifyCurrentPOI(); //remove "current POI" menu/display
-    this.setState({filterMenu: null}); //remove filter menu
+    this.setState({filterMenu: null, pendingPOI_image: null, pendingPOI_type: null}); //remove filter menu
     console.log("setting POI to", !this.state.displayPOImenu);
     this.setState({displayPOImenu: !this.state.displayPOImenu}); //flip POI menu display state
     if (this.state.displayPOImenu) {this.setState({addPOImenu: null}); return;}
@@ -369,7 +369,7 @@ export default class App extends Component {
     let accessibilityIndicatorLM = new Animated.Value(0); let skillLevelIndicatorLM = new Animated.Value(0);
     let securityIndicatorLM = new Animated.Value(0); let conditionIndicatorLM = new Animated.Value(0);
     this.setState({
-      currentPOI: <View style = {{position: 'absolute', bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 10, height: 200, width: FRAME_WIDTH, flexDirection: 'row'}}>
+      currentPOI: <View style = {{position: 'absolute', bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 10, height: 200, width: FRAME_WIDTH, flexDirection: 'row', zIndex: 7}}>
                             <Image //renders back image for POI display menu
                               source = {require('./src/components/selectedDisplay.png')} //submit button for POI info
                               style = {styles.POIdisplayBG}
@@ -486,34 +486,38 @@ export default class App extends Component {
     console.log("displaying images");
     this.nullifyCommentMenu();
 
+    let animVal = new Animated.Value(2 * FRAME_HEIGHT);
     this.setState({
-      currentPOI_images:  <View style = {styles.POIdisplayAdditionalMenu_ContentWrapper}>
-                                    <Image //renders back image for POI image display menu
-                                      source = {require('./src/components/selectedDisplay.png')} //submit button for POI info
-                                      style = {{
-                                        resizeMode: 'contain', 
-                                        position: 'absolute',  
-                                        height: 200, 
-                                        width: FRAME_WIDTH,
-                                      }}
-                                    />
+      currentPOI_images:  <Animated.View style = {{position: 'absolute', width: FRAME_WIDTH, height: FRAME_HEIGHT, top: animVal, zIndex: 0}}>
+                            <View style = {styles.POIdisplayAdditionalMenu_ContentWrapper}>
+                              <Image //renders back image for POI image display menu
+                                source = {require('./src/components/selectedDisplay.png')} //submit button for POI info
+                                style = {{
+                                  resizeMode: 'contain', 
+                                  position: 'absolute',  
+                                  height: 200, 
+                                  width: FRAME_WIDTH,
+                                }}
+                              />
 
-                                    <FlatList
-                                      style = {{paddingLeft: 20}}
-                                      data = {poi_obj.images}
-                                      renderItem = {({ item }) => (<Image source = {{uri: `data:image/jpeg;base64,${item.data}`}} style = {{zIndex: 5, height: 140, width: 140, resizeMode: 'contain', alignSelf: 'center', marginRight: 15}} />)}
-                                      horizontal = {true}
-                                      initialNumToRender = {5}
-                                    />
+                              <FlatList
+                                style = {{paddingLeft: 20}}
+                                data = {poi_obj.images}
+                                renderItem = {({ item }) => (<Image source = {{uri: `data:image/jpeg;base64,${item.data}`}} style = {{zIndex: 5, height: 140, width: 140, resizeMode: 'contain', alignSelf: 'center', marginRight: 15}} />)}
+                                horizontal = {true}
+                                initialNumToRender = {5}
+                              />
 
-                                    <TouchableOpacity onPress = {() => {this.nullifyImageMenu()}} style = {styles.POIexit_TO}>
-                                      <Image
-                                        source = {require('./src/components/pointDisplay_x.png')} //submit button for POI info
-                                        style = {styles.POIexit_generic}
-                                      />
-                                    </TouchableOpacity>
-                                  </View>
+                              <TouchableOpacity onPress = {() => {this.nullifyImageMenu()}} style = {styles.POIexit_TO}>
+                                <Image
+                                  source = {require('./src/components/pointDisplay_x.png')} //submit button for POI info
+                                  style = {styles.POIexit_generic}
+                                />
+                              </TouchableOpacity>
+                            </View>
+                          </Animated.View>
     });
+    Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: 0}).start();
   };
 
   addPOIimage = async poi_obj => {
@@ -551,34 +555,38 @@ export default class App extends Component {
     console.log("displaying comments");
     this.nullifyImageMenu();
 
+    let animVal = new Animated.Value(2 * FRAME_HEIGHT);
     this.setState({
-      currentPOI_comments:  <View style = {styles.POIdisplayAdditionalMenu_ContentWrapper}>
-                                      <Image //renders back image for POI display menu
-                                        source = {require('./src/components/selectedDisplay.png')}
-                                        style = {styles.POIdisplayBG}
-                                      />
+      currentPOI_comments:  <Animated.View style = {{position: 'absolute', width: FRAME_WIDTH, height: FRAME_HEIGHT, top: animVal}}>
+                              <View style = {styles.POIdisplayAdditionalMenu_ContentWrapper}>
+                                <Image //renders back image for POI display menu
+                                  source = {require('./src/components/selectedDisplay.png')}
+                                  style = {styles.POIdisplayBG}
+                                />
 
-                                      {
-                                      poi_obj.comments ?
-                                        <FlatList
-                                          style = {{paddingLeft: 20, zIndex: 6, marginTop: 40}}
-                                          data = {poi_obj.comments}
-                                          renderItem = {({ item }) => (<Text style = {{width: 200, height: 180}} allowFontScaling = {false}>{item}</Text>)}
-                                          horizontal = {true}
-                                          initialNumToRender = {5}
-                                        />
-                                      :
-                                        <Text allowFontScaling = {false} style = {{alignSelf: "center"}}>NO COMMENTS</Text>
-                                      }
+                                {
+                                poi_obj.comments ?
+                                  <FlatList
+                                    style = {{paddingLeft: 20, zIndex: 6, marginTop: 40}}
+                                    data = {poi_obj.comments}
+                                    renderItem = {({ item }) => (<Text style = {{width: 200, height: 180}} allowFontScaling = {false}>{item}</Text>)}
+                                    horizontal = {true}
+                                    initialNumToRender = {5}
+                                  />
+                                :
+                                  <Text allowFontScaling = {false} style = {{alignSelf: "center"}}>NO COMMENTS</Text>
+                                }
 
-                                      <TouchableOpacity onPress = {() => {this.nullifyCommentMenu()}} style = {styles.POIexit_TO}>
-                                        <Image
-                                          source = {require('./src/components/pointDisplay_x.png')} //submit button for POI info
-                                          style = {styles.POIexit_generic}
-                                        />
-                                      </TouchableOpacity>
-                                    </View>
+                                <TouchableOpacity onPress = {() => {this.nullifyCommentMenu()}} style = {styles.POIexit_TO}>
+                                  <Image
+                                    source = {require('./src/components/pointDisplay_x.png')} //submit button for POI info
+                                    style = {styles.POIexit_generic}
+                                  />
+                                </TouchableOpacity>
+                              </View>
+                            </Animated.View>
     });
+    Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: 0}).start();
   };
 
   addPOIcomment = poi_obj => {
