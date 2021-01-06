@@ -1,5 +1,5 @@
 import React, { Component } from "react"; //importing necessary libraries
-import { StyleSheet, View, Image, TouchableOpacity, Text, Alert, StatusBar, Platform, FlatList, Animated } from "react-native";
+import { StyleSheet, View, Image, TouchableOpacity, Text, Alert, StatusBar, Platform, FlatList, Animated, TextInput } from "react-native";
 import { Dimensions } from 'react-native';
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
@@ -13,13 +13,14 @@ import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
 import * as ImageManipulator from 'expo-image-manipulator';
 
-//comments addition 
 //heading direction not updating frequently
 //prompt for rating when leaving area
 //settings/help
 //change radio buttons to skater icon
 //add star rating or allow users to change ratings? otherwise one user sets ratings forever
-//filters
+//filter menu
+//implement gestures
+//comments only pushing sample text
 
 //icon/splash/etc (icon 1024x1024)
 //in app.json, change: name, slug, bundleID (change in firebase as well)
@@ -85,6 +86,9 @@ export default class App extends Component {
       currentPOI: null,
       currentPOI_images: null,
       currentPOI_comments: null,
+
+      commentInterface: null,
+      ipComment: "",
 
       //filter menu display
       filterMenu: null,
@@ -508,10 +512,7 @@ export default class App extends Component {
   addPOIimage = async poi_obj => {
     console.log("adding image");
 
-    let currentImages = [];
-    db.ref('/poi').on('value', (snapshot) => { //pull images from RTDB
-      currentImages = snapshot.val()[poi_obj.id].images;
-    });
+    let currentImages = poi_obj.images;
 
     let imageTemp = null; //used to hold new image data
     const {status} = await Permissions.askAsync(Permissions.CAMERA); //prompt for cam perms
@@ -542,6 +543,7 @@ export default class App extends Component {
 
     let animVal = new Animated.Value(2 * FRAME_HEIGHT);
     this.setState({
+      ipComment: "",
       currentPOI_comments:  <Animated.View style = {{position: 'absolute', width: FRAME_WIDTH, height: FRAME_HEIGHT, top: animVal}}>
                               <View style = {styles.POIdisplayAdditionalMenu_ContentWrapper}>
                                 <Image //renders back image for POI display menu
@@ -554,7 +556,7 @@ export default class App extends Component {
                                   <FlatList
                                     style = {{paddingLeft: 20, zIndex: 6, marginTop: 40}}
                                     data = {poi_obj.comments}
-                                    renderItem = {({ item }) => (<Text style = {{width: 200, height: 180}} allowFontScaling = {false}>{item}</Text>)}
+                                    renderItem = {({ item }) => (<Text style = {{width: 200, height: 180}} allowFontScaling = {false}>{item.text}</Text>)}
                                     horizontal = {true}
                                     initialNumToRender = {5}
                                   />
@@ -576,7 +578,45 @@ export default class App extends Component {
 
   addPOIcomment = poi_obj => {
     console.log("adding comment");
+    this.nullifyCurrentPOI();
+    this.setState({
+      commentInterface: <View style = {{position: 'absolute', height: FRAME_HEIGHT, width: FRAME_WIDTH, backgroundColor: 'rgba(255, 255, 255, 0.8)'}}>
+                          <TouchableOpacity onPress = {() => {this.setState({commentInterface: null});}} style = {{position: 'absolute', height: FRAME_WIDTH * .07, width: FRAME_WIDTH * .07, top: 60, right: 50}}>
+                            <Image
+                              source = {require('./src/components/pointDisplay_x.png')}
+                              style = {styles.POIexit_generic}
+                            />
+                          </TouchableOpacity>
+
+                          <TextInput style = {{position: "absolute", left: FRAME_WIDTH / 2 - 50, bottom: FRAME_HEIGHT / 4, width: 100, height: 300}}
+                              allowFontScaling = {false}
+                              placeholder = "Say something about this spot!"
+                              placeholderTextColor = {POS_COLOR}
+                              maxLength = {100}
+                              clearButtonMode = 'while-editing'
+                              multiline
+                              textAlign = 'center'
+                              onChangeText = {(text) => this.setState({ipComment: text})}
+                            />
+
+                          <TouchableOpacity onPress = {() => {this.POIcommentSubmissionHandler(poi_obj)}} style = {{position: 'absolute', height: FRAME_WIDTH * .07, width: FRAME_WIDTH * .07, top: 60, right: 80}}>
+                            <Image
+                              source = {require('./src/components/submitComment.png')}
+                              style = {styles.POIexit_generic}
+                            />
+                          </TouchableOpacity>
+                        </View>
+    });
   };
+
+  POIcommentSubmissionHandler = poi_obj => {
+    console.log("submitting comment");
+    if (!this.state.ipComment) {return;}
+    this.setState({commentInterface: null});
+    let currentComments = poi_obj.comments ? poi_obj.comments : [];
+    currentComments.push({key: currentComments.length.toString(), text: this.state.ipComment})
+    db.ref(`/poi/${poi_obj.id}`).update({comments: currentComments});
+  }
 
 
 
@@ -607,35 +647,77 @@ export default class App extends Component {
     let accessibility_min = this.state.accessibility_min; let accessibility_max = this.state.accessibility_max;
 
     this.setState({
-      filterMenu: <View style = {{height: 200, width: FRAME_WIDTH, position: 'absolute', top: 120, backgroundColor: 'white', flexWrap: 'row'}}>
-                    <RangeSlider min = {0} max = {10}
-                      styleSize = 'small'
-                      fromValueOnChange = {value => {condition_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
-                      toValueOnChange = {value => {condition_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
-                      initialFromValue = {condition_min}
-                      initialToValue = {condition_max}
+      filterMenu: <View style = {{height: 400, width: FRAME_WIDTH, position: 'absolute', top: 120, flexDirection: 'row', flexWrap: 'wrap'}}>
+
+                    <Image
+                      source = {require('./src/components/selectedDisplay.png')}
+                      style = {{position: 'absolute', resizeMode: 'stretch', height: 400, width: FRAME_WIDTH}}
                     />
-                    <RangeSlider min = {0} max = {10}
-                      styleSize = 'small'
-                      fromValueOnChange = {value => {security_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
-                      toValueOnChange = {value => {security_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
-                      initialFromValue = {security_min}
-                      initialToValue = {security_max}
-                    />
-                    <RangeSlider min = {0} max = {10}
-                      styleSize = 'small'
-                      fromValueOnChange = {value => {accessibility_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
-                      toValueOnChange = {value => {accessibility_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
-                      initialFromValue = {accessibility_min}
-                      initialToValue = {accessibility_max}
-                    />
-                    <RangeSlider min = {0} max = {10}
-                      styleSize = 'small'
-                      fromValueOnChange = {value => {skillLevel_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
-                      toValueOnChange = {value => {skillLevel_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
-                      initialFromValue = {skillLevel_min}
-                      initialToValue = {skillLevel_max}
-                    />
+
+                    <View style = {{width: FRAME_WIDTH / 2, alignItems: 'center', marginTop: 10}}>
+                      <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Accessibility</Text>
+                      <RangeSlider min = {0} max = {10}
+                        styleSize = 'small'
+                        fromValueOnChange = {value => {accessibility_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
+                        toValueOnChange = {value => {accessibility_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
+                        initialFromValue = {accessibility_min}
+                        initialToValue = {accessibility_max}
+                        
+                        fromKnobColor = {NEUTRAL_COLOR}
+                        toKnobColor = {NEUTRAL_COLOR}
+                        inRangeBarColor = {POS_COLOR}
+                        outOfRangeBarColor = {NEG_COLOR}
+                      />
+                    </View>
+
+                    <View style = {{width: FRAME_WIDTH / 2, alignItems: 'center', marginTop: 10}}>
+                      <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Skill Level</Text>
+                      <RangeSlider min = {0} max = {10}
+                        styleSize = 'small'
+                        fromValueOnChange = {value => {skillLevel_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
+                        toValueOnChange = {value => {skillLevel_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
+                        initialFromValue = {skillLevel_min}
+                        initialToValue = {skillLevel_max}
+
+                        fromKnobColor = {NEUTRAL_COLOR}
+                        toKnobColor = {NEUTRAL_COLOR}
+                        inRangeBarColor = {POS_COLOR}
+                        outOfRangeBarColor = {NEG_COLOR}
+                      />
+                    </View>
+                    
+                    <View style = {{width: FRAME_WIDTH / 2, alignItems: 'center'}}>
+                      <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Security</Text>
+                      <RangeSlider min = {0} max = {10}
+                        styleSize = 'small'
+                        fromValueOnChange = {value => {security_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
+                        toValueOnChange = {value => {security_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
+                        initialFromValue = {security_min}
+                        initialToValue = {security_max}
+                        
+                        fromKnobColor = {NEUTRAL_COLOR}
+                        toKnobColor = {NEUTRAL_COLOR}
+                        inRangeBarColor = {POS_COLOR}
+                        outOfRangeBarColor = {NEG_COLOR}
+                      />
+                    </View>
+
+                    <View style = {{width: FRAME_WIDTH / 2, alignItems: 'center'}}>
+                      <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Condition</Text>
+                      <RangeSlider min = {0} max = {10}
+                        styleSize = 'small'
+                        fromValueOnChange = {value => {condition_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
+                        toValueOnChange = {value => {condition_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
+                        initialFromValue = {condition_min}
+                        initialToValue = {condition_max}
+                        
+                        fromKnobColor = {NEUTRAL_COLOR}
+                        toKnobColor = {NEUTRAL_COLOR}
+                        inRangeBarColor = {POS_COLOR}
+                        outOfRangeBarColor = {NEG_COLOR}
+                      />
+                    </View>
+
                   </View>
     });
   };
@@ -793,6 +875,8 @@ export default class App extends Component {
             source = {this.state.darkModeEnabled ? require('./src/components/lm.png') : require('./src/components/dm.png')} //ternary identifies proper icon based on current mode
           />
         </TouchableOpacity>
+
+        {this.state.commentInterface}
 
       </View>
     );
