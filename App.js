@@ -21,9 +21,6 @@ import * as ImageManipulator from 'expo-image-manipulator';
 //add star rating or allow users to change ratings? otherwise one user sets ratings forever
 //filters
 
-//show primary image when uploading
-//image add button not changing color
-
 //icon/splash/etc (icon 1024x1024)
 //in app.json, change: name, slug, bundleID (change in firebase as well)
 
@@ -90,7 +87,9 @@ export default class App extends Component {
       currentPOI_comments: null,
 
       //filter menu display
-      filterMenu: null
+      filterMenu: null,
+      condition_min: 0, condition_max: 10, security_min: 0, security_max: 10, 
+      skillLevel_min: 0, skillLevel_max: 10, accessibility_min: 0, accessibility_max: 10
     };
   }
 
@@ -268,20 +267,7 @@ export default class App extends Component {
                       Ramp{'\n'}Rail{'\n'}Ledge{'\n'}Gap{'\n'}
                     </Text>
 
-                    <TouchableOpacity onPress = {this.selectImage} style = {{marginTop: 20, justifyContent: 'center', height: 31, width: 150, marginLeft: 40}}>
-                      <Image
-                        source = {this.state.pendingPOI_image ? require('./src/components/uploadimg_pos.png') : require('./src/components/uploadimg_neg.png')} //submit button for POI info
-                        style = {{
-                          resizeMode: 'contain',
-                          width: 150,
-                          position: 'absolute',
-
-                        }}
-                      />
-                      <Text allowFontScaling = {false} style = {{fontWeight: 'bold', alignSelf: 'center'}}>Add Image</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity onPress = {this.pushPOIdata}>  
+                    <TouchableOpacity onPress = {this.pushPOIdata} style = {{zIndex: 7, position: 'absolute', top: 300, right: 20, width: POI_MENU_DIM * .2, height: POI_MENU_DIM * .2}}>  
                       <Image
                         source = {require('./src/components/submitPOI.png')} //submit button for POI info
                         style = {{
@@ -289,8 +275,7 @@ export default class App extends Component {
                           width: POI_MENU_DIM * .2,
                           height: POI_MENU_DIM * .2,
                           resizeMode: 'contain',
-                          right: 5,
-                          bottom: 35
+                          zIndex: 8
                         }}
                       />
                     </TouchableOpacity>
@@ -370,111 +355,111 @@ export default class App extends Component {
     let securityIndicatorLM = new Animated.Value(0); let conditionIndicatorLM = new Animated.Value(0);
     this.setState({
       currentPOI: <View style = {{position: 'absolute', bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 10, height: 200, width: FRAME_WIDTH, flexDirection: 'row', zIndex: 7}}>
-                            <Image //renders back image for POI display menu
-                              source = {require('./src/components/selectedDisplay.png')} //submit button for POI info
-                              style = {styles.POIdisplayBG}
+                      <Image //renders back image for POI display menu
+                        source = {require('./src/components/selectedDisplay.png')} //submit button for POI info
+                        style = {styles.POIdisplayBG}
+                      />
+
+                      <View>
+                        <View style = {{flexDirection: 'row', paddingTop: 40, paddingLeft: 10}}>
+                          <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Accessibility:</Text>
+                          <View style = {{paddingLeft: 10}}>
+                            <Image
+                              source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
+                              style = {styles.displayBar}
                             />
-
-                            <View>
-                              <View style = {{flexDirection: 'row', paddingTop: 40, paddingLeft: 10}}>
-                                <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Accessibility:</Text>
-                                <View style = {{paddingLeft: 10}}>
-                                  <Image
-                                    source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
-                                    style = {styles.displayBar}
-                                  />
-                                  <Animated.Image
-                                    source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
-                                    style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["accessibility"] === 0 ? 1 : accessibilityIndicatorLM}}
-                                  />
-                                </View>
-                                <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 5}}> ({poi_obj["accessibility"]})</Text>
-                              </View>
-
-                              <View style = {{flexDirection: 'row', paddingLeft: 29}}>
-                                <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Skill Level:</Text>
-                                <View style = {{paddingLeft: 10,}}>
-                                  <Image
-                                    source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
-                                    style = {styles.displayBar}
-                                  />
-                                  <Animated.Image
-                                    source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
-                                    style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["skillLevel"] === 0 ? 1 : skillLevelIndicatorLM}}
-                                  />
-                                </View>
-                                <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 5}}> ({poi_obj["skillLevel"]})</Text>
-                              </View>
-
-                              <View style = {{flexDirection: 'row', paddingLeft: 30}}>
-                                <Text  allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Condition:</Text>
-                                <View style = {{paddingLeft: 10}}>
-                                  <Image
-                                    source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
-                                    style = {styles.displayBar}
-                                  />
-                                  <Animated.Image
-                                    source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
-                                    style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["condition"] === 0 ? 1 : conditionIndicatorLM}}
-                                  />
-                                </View>
-                                <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 5}}> ({poi_obj["condition"]})</Text>
-                              </View>
-
-                              <View style = {{flexDirection: 'row', paddingLeft: 39}}>
-                                <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Security:</Text>
-                                <View style = {{paddingLeft: 10,}}>
-                                  <Image
-                                    source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
-                                    style = {styles.displayBar}
-                                  />
-                                  <Animated.Image
-                                    source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
-                                    style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["security"] === 0 ? 1 : securityIndicatorLM}}
-                                  />
-                                </View>
-                                <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 8}}>({poi_obj["security"]})</Text>
-                              </View>
-                            </View>
-
-                            <View style = {{marginTop: 45, marginLeft: 20}}>
-                              <TouchableOpacity onPress = {() => this.enableCurrentPOI_images(poi_obj)}>
-                                <Image
-                                  source = {require('./src/components/viewPhotos.png')}
-                                  style = {{resizeMode: 'contain', height: 50, width: 50}}
-                                />
-                              </TouchableOpacity>
-                              <TouchableOpacity onPress = {() => this.addPOIimage(poi_obj)}>
-                                <Image
-                                  source = {require('./src/components/addPhoto.png')}
-                                  style = {{resizeMode: 'contain', height: 40, width: 40, marginLeft: 5}}
-                                />
-                              </TouchableOpacity>
-                            </View>
-
-                            <View style = {{marginTop: 45, marginLeft: 5}}>
-                              <TouchableOpacity onPress = {() => this.enableCurrentPOI_comments(poi_obj)}>
-                                <Image
-                                  source = {require('./src/components/viewComments.png')}
-                                  style = {{resizeMode: 'contain', height: 50, width: 50}}
-                                />
-                              </TouchableOpacity>
-                              <TouchableOpacity onPress = {() => this.addPOIcomment(poi_obj)}>
-                                <Image
-                                  source = {require('./src/components/addComment.png')}
-                                  style = {{resizeMode: 'contain', height: 40, width: 40, marginLeft: 5}}
-                                />
-                              </TouchableOpacity>
-                            </View>
-
-                            <TouchableOpacity onPress = {() => {this.nullifyCurrentPOI()}} style = {styles.POIexit_TO}>
-                              <Image
-                                source = {require('./src/components/pointDisplay_x.png')} //submit button for POI info
-                                style = {styles.POIexit_generic}
-                              />
-                            </TouchableOpacity>
-
+                            <Animated.Image
+                              source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
+                              style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["accessibility"] === 0 ? 1 : accessibilityIndicatorLM}}
+                            />
                           </View>
+                          <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 5}}> ({poi_obj["accessibility"]})</Text>
+                        </View>
+
+                        <View style = {{flexDirection: 'row', paddingLeft: 29}}>
+                          <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Skill Level:</Text>
+                          <View style = {{paddingLeft: 10,}}>
+                            <Image
+                              source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
+                              style = {styles.displayBar}
+                            />
+                            <Animated.Image
+                              source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
+                              style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["skillLevel"] === 0 ? 1 : skillLevelIndicatorLM}}
+                            />
+                          </View>
+                          <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 5}}> ({poi_obj["skillLevel"]})</Text>
+                        </View>
+
+                        <View style = {{flexDirection: 'row', paddingLeft: 30}}>
+                          <Text  allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Condition:</Text>
+                          <View style = {{paddingLeft: 10}}>
+                            <Image
+                              source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
+                              style = {styles.displayBar}
+                            />
+                            <Animated.Image
+                              source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
+                              style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["condition"] === 0 ? 1 : conditionIndicatorLM}}
+                            />
+                          </View>
+                          <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 5}}> ({poi_obj["condition"]})</Text>
+                        </View>
+
+                        <View style = {{flexDirection: 'row', paddingLeft: 39}}>
+                          <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Security:</Text>
+                          <View style = {{paddingLeft: 10,}}>
+                            <Image
+                              source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
+                              style = {styles.displayBar}
+                            />
+                            <Animated.Image
+                              source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
+                              style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["security"] === 0 ? 1 : securityIndicatorLM}}
+                            />
+                          </View>
+                          <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 8}}>({poi_obj["security"]})</Text>
+                        </View>
+                      </View>
+
+                      <View style = {{marginTop: 45, marginLeft: 20}}>
+                        <TouchableOpacity onPress = {() => this.enableCurrentPOI_images(poi_obj)}>
+                          <Image
+                            source = {require('./src/components/viewPhotos.png')}
+                            style = {{resizeMode: 'contain', height: 50, width: 50}}
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress = {() => this.addPOIimage(poi_obj)}>
+                          <Image
+                            source = {require('./src/components/addPhoto.png')}
+                            style = {{resizeMode: 'contain', height: 40, width: 40, marginLeft: 5}}
+                          />
+                        </TouchableOpacity>
+                      </View>
+
+                      <View style = {{marginTop: 45, marginLeft: 5}}>
+                        <TouchableOpacity onPress = {() => this.enableCurrentPOI_comments(poi_obj)}>
+                          <Image
+                            source = {require('./src/components/viewComments.png')}
+                            style = {{resizeMode: 'contain', height: 50, width: 50}}
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress = {() => this.addPOIcomment(poi_obj)}>
+                          <Image
+                            source = {require('./src/components/addComment.png')}
+                            style = {{resizeMode: 'contain', height: 40, width: 40, marginLeft: 5}}
+                          />
+                        </TouchableOpacity>
+                      </View>
+
+                      <TouchableOpacity onPress = {() => {this.nullifyCurrentPOI()}} style = {styles.POIexit_TO}>
+                        <Image
+                          source = {require('./src/components/pointDisplay_x.png')} //submit button for POI info
+                          style = {styles.POIexit_generic}
+                        />
+                      </TouchableOpacity>
+
+                    </View>
     });
     Animated.spring(accessibilityIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["accessibility"]}).start();
     Animated.spring(conditionIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["condition"]}).start();
@@ -598,51 +583,58 @@ export default class App extends Component {
   ////////////////////////////////////////////////////////////////Filtering///////////////////////////////////////////////////////////////////
 
   changeFilteredList = (condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max) => {
-    this.setState({filterMenu: null});
     console.log("updating filters");
+    this.setState({condition_min: condition_min, condition_max: condition_max, security_min: security_min, security_max: security_max, accessibility_max: accessibility_max, accessibility_min: accessibility_min, skillLevel_max: skillLevel_max, skillLevel_min: skillLevel_min});
+    let tempArr = [];
     for (i = 0; i < this.state.markers.length; i++) {
       let currMarker = this.state.markers[i];
       if (currMarker.condition <= condition_max && currMarker.condition >= condition_min && currMarker.security <= security_max 
           && currMarker.security >= security_min && currMarker.accessibility <= accessibility_max && currMarker.accessibility >= accessibility_min 
           && currMarker.skillLevel <= skillLevel_max && currMarker.skillLevel >= skillLevel_min) {
-        this.state.filteredMarkers.push(currMarker);
+        tempArr.push(currMarker);
       }
     }
+    this.setState({filteredMarkers: tempArr});
     console.log(condition_min, condition_max, security_min, security_max, accessibility_min, accessibility_max, skillLevel_min, skillLevel_max);
   };
 
   showFilters = async () => {
     console.log("showing filters");
-    let condition_min = 0; let condition_max = 10;
-    let security_min = 0; let security_max = 10;
-    let skillLevel_min = 0; let skillLevel_max = 10;
-    let accessibility_min = 0; let accessibility_max = 10;
+    if (this.state.filterMenu) {this.setState({filterMenu: null}); return;}
+    let condition_min = this.state.condition_min; let condition_max = this.state.condition_max;
+    let security_min = this.state.security_min; let security_max = this.state.security_max;
+    let skillLevel_min = this.state.skillLevel_min; let skillLevel_max = this.state.skillLevel_max;
+    let accessibility_min = this.state.accessibility_min; let accessibility_max = this.state.accessibility_max;
 
     this.setState({
-      filterMenu: <View style = {{height: 200, width: FRAME_WIDTH, position: 'absolute', top: 120, backgroundColor: 'white'}}>
+      filterMenu: <View style = {{height: 200, width: FRAME_WIDTH, position: 'absolute', top: 120, backgroundColor: 'white', flexWrap: 'row'}}>
                     <RangeSlider min = {0} max = {10}
+                      styleSize = 'small'
                       fromValueOnChange = {value => {condition_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
                       toValueOnChange = {value => {condition_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
-                      initialFromValue = {0}
-                      initialToValue = {10}
+                      initialFromValue = {condition_min}
+                      initialToValue = {condition_max}
                     />
                     <RangeSlider min = {0} max = {10}
+                      styleSize = 'small'
                       fromValueOnChange = {value => {security_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
                       toValueOnChange = {value => {security_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
-                      initialFromValue = {0}
-                      initialToValue = {10}
+                      initialFromValue = {security_min}
+                      initialToValue = {security_max}
                     />
                     <RangeSlider min = {0} max = {10}
+                      styleSize = 'small'
                       fromValueOnChange = {value => {accessibility_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
                       toValueOnChange = {value => {accessibility_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
-                      initialFromValue = {0}
-                      initialToValue = {10}
+                      initialFromValue = {accessibility_min}
+                      initialToValue = {accessibility_max}
                     />
                     <RangeSlider min = {0} max = {10}
+                      styleSize = 'small'
                       fromValueOnChange = {value => {skillLevel_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
                       toValueOnChange = {value => {skillLevel_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
-                      initialFromValue = {0}
-                      initialToValue = {10}
+                      initialFromValue = {skillLevel_min}
+                      initialToValue = {skillLevel_max}
                     />
                   </View>
     });
@@ -730,20 +722,45 @@ export default class App extends Component {
 
         </MapView>
 
-        <TouchableOpacity onPress = {this.showFilters} style = {{position: 'absolute', top: 50, right: 10, width: 50, height: 50}}>
-          <Image
-            source = {require('./src/components/filters.png')}
-            style = {{resizeMode: 'contain', width: 50, height: 50}}
-          />
-        </TouchableOpacity>
-
         {this.state.currentPOI /*conditional POI display/info menu renders*/}
         {this.state.currentPOI_images}
         {this.state.currentPOI_comments}
 
         {this.state.filterMenu}
-
         {this.state.addPOImenu}
+
+        {this.state.displayPOImenu ? //conditionally render add image button (to refresh at maximum rate)
+            <TouchableOpacity onPress = {this.selectImage} style = {{justifyContent: 'center', height: 31, width: 150, position: "absolute", bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 170, left: (FRAME_WIDTH - POI_MENU_DIM)/2 + 160}}>
+              <Image
+                source = {this.state.pendingPOI_image ? require('./src/components/uploadimg_pos.png') : require('./src/components/uploadimg_neg.png')} //submit button for POI info
+                style = {{
+                  resizeMode: 'contain',
+                  width: 150,
+                  position: 'absolute',
+                }}
+              />
+              <Text allowFontScaling = {false} style = {{fontWeight: 'bold', alignSelf: 'center'}}>Add Image</Text>
+            </TouchableOpacity>
+          : null}
+        {this.state.displayPOImenu ? 
+          this.state.pendingPOI_image ?
+            <Image //selected image
+              style = {{position: "absolute", height: 70, width: 70, resizeMode: 'contain', bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 85, left: (FRAME_WIDTH - POI_MENU_DIM)/2 + 160}}
+              source = {{uri: this.state.pendingPOI_image.uri}}
+            />
+          : 
+            <Image //no image
+              style = {{position: "absolute", height: 70, width: 70, resizeMode: 'contain', bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 85, left: (FRAME_WIDTH - POI_MENU_DIM) / 2 + 160}}
+              source = {require('./src/components/no-image.png')}
+            />
+        : null}
+
+        <TouchableOpacity onPress = {this.showFilters} style = {{position: 'absolute', bottom: FRAME_HEIGHT * .04 + 20, left: (FRAME_WIDTH - 40) / 2 - FRAME_WIDTH * .25, width: 40, height: 40}}>
+          <Image
+            source = {this.state.darkModeEnabled ? require('./src/components/filters_dm.png') : require('./src/components/filters.png')}
+            style = {{resizeMode: 'contain', width: 50, height: 50}}
+          />
+        </TouchableOpacity>
         
         <TouchableOpacity onPress = {this.initiate_addPOI}>
           <Image  //"add POI" button
