@@ -12,18 +12,30 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
 import * as ImageManipulator from 'expo-image-manipulator';
-import CircleCheckBox, {LABEL_POSITION} from 'react-native-circle-checkbox';  
+import CircleCheckBox, {LABEL_POSITION} from 'react-native-circle-checkbox';
+import { showLocation } from 'react-native-map-link'
 
-//prompt for rating when leaving area
-//settings/help
+//settings/info
 //change radio buttons to skater icon
-//add star rating or allow users to change ratings? otherwise one user sets ratings forever
-
-//filter types? not working
+//filter types of poi
 //implement gestures
+//add animations
+//on large image view, add exit and allow swipe to view others
+//clean up code
+//ability to send poi via messages
 
+//add star rating or allow users to change ratings? otherwise one user sets ratings forever
+//prompt for rating when leaving area
+//add video support
+//widget that shows surrounding points
+//app rating prompts
+//haptics/3d touch (which models?)
+//restore previous screen when app reloads
 //icon/splash/etc (icon 1024x1024)
-//in app.json, change: name, slug, bundleID (change in firebase as well)
+//make sure permissions dont break the app
+//test different ios versions
+//shake to refresh
+//add purpose strings when requesting perms
 
 const darkMapStyle = [ //generate dark map style (stored locally)
   {"elementType": "geometry", "stylers": [{"color": "#242f3e"}]},
@@ -90,6 +102,8 @@ export default class App extends Component {
 
       commentInterface: null,
       ipComment: "",
+      
+      fullImg: null,
 
       //filter menu display
       filterMenu: null,
@@ -462,9 +476,18 @@ export default class App extends Component {
                         </TouchableOpacity>
                       </View>
 
+                      <View style = {{position: 'absolute', top: 135, right: 80}}>
+                        <TouchableOpacity onPress = {() => {this.initiateNavigation(poi_obj)}}>
+                          <Image
+                            source = {require('./src/components/navigationPin.png')}
+                            style = {{resizeMode: 'contain', height: 40, width: 40}}
+                          />
+                        </TouchableOpacity>
+                      </View>
+
                       <TouchableOpacity onPress = {() => {this.nullifyCurrentPOI()}} style = {styles.POIexit_TO}>
                         <Image
-                          source = {require('./src/components/pointDisplay_x.png')} //submit button for POI info
+                          source = {require('./src/components/pointDisplay_x.png')}
                           style = {styles.POIexit_generic}
                         />
                       </TouchableOpacity>
@@ -498,7 +521,11 @@ export default class App extends Component {
                               <FlatList
                                 style = {{paddingLeft: 20}}
                                 data = {poi_obj.images}
-                                renderItem = {({ item }) => (<Image source = {{uri: `data:image/jpeg;base64,${item.data}`}} style = {{zIndex: 5, height: 140, width: 140, resizeMode: 'contain', alignSelf: 'center', marginRight: 15}} />)}
+                                renderItem = {({ item }) => ( 
+                                                              <TouchableOpacity onPress = {() => {this.displayFullsizeImage(item)}}>
+                                                                <Image source = {{uri: `data:image/jpeg;base64,${item.data}`}} style = {{zIndex: 5, height: 140, width: 140, resizeMode: 'contain', alignSelf: 'center', marginRight: 15, marginTop: 30}}/>
+                                                              </TouchableOpacity> 
+                                                            )}
                                 horizontal = {true}
                                 initialNumToRender = {5}
                               />
@@ -514,6 +541,14 @@ export default class App extends Component {
     });
     Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: 0}).start();
   };
+
+  displayFullsizeImage = img => {
+    this.setState({fullImg: 
+                            <View style = {{zIndex: 8, position: 'absolute', width: FRAME_WIDTH, height: FRAME_HEIGHT, backgroundColor: 'rgba(255, 255, 255, 0.8)', justifyContent: 'center', alignContent: 'center'}}>
+                              <Image source = {{uri: `data:image/jpeg;base64,${img.data}`}} style = {{height: FRAME_WIDTH, width: FRAME_WIDTH, resizeMode: 'contain'}}/>
+                            </View>
+    });
+  }
 
   addPOIimage = async poi_obj => {
     console.log("adding image");
@@ -623,6 +658,20 @@ export default class App extends Component {
     currentComments.push({key: currentComments.length.toString(), text: this.state.ipComment})
     db.ref(`/poi/${poi_obj.id}`).update({comments: currentComments});
   }
+
+  initiateNavigation = poi_obj => {
+    console.log("navigating");
+    showLocation({
+      latitude: poi_obj.regionState.latitude,
+      longitude: poi_obj.regionState.longitude,
+      sourceLatitude: this.state.regionState.latitude,  // optionally specify starting location for directions
+      sourceLongitude: this.state.regionState.longitude,  // not optional if sourceLatitude is specified
+      alwaysIncludeGoogle: true, // optional, true will always add Google Maps to iOS and open in Safari, even if app is not installed (default: false)
+      dialogTitle: 'Select an app to open this skate spot!', // optional (default: 'Open in Maps')
+      dialogMessage: 'These are the compatible apps we found on your device.', // optional (default: 'What app would you like to use?')
+      cancelText: 'No thanks, I don\'t want to hit this spot.', // optional (default: 'Cancel')
+    });
+  };
 
 
 
@@ -892,12 +941,12 @@ export default class App extends Component {
         {this.state.displayPOImenu ? 
           this.state.pendingPOI_image ?
             <Image //selected image
-              style = {{position: "absolute", height: 70, width: 70, resizeMode: 'contain', bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 85, left: (FRAME_WIDTH - POI_MENU_DIM)/2 + 160}}
+              style = {{position: "absolute", height: 70, width: 70, resizeMode: 'contain', bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 85, left: (FRAME_WIDTH - POI_MENU_DIM)/2 + 165}}
               source = {{uri: this.state.pendingPOI_image.uri}}
             />
           : 
             <Image //no image
-              style = {{position: "absolute", height: 70, width: 70, resizeMode: 'contain', bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 85, left: (FRAME_WIDTH - POI_MENU_DIM) / 2 + 160}}
+              style = {{position: "absolute", height: 80, width: 80, resizeMode: 'contain', bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 80, left: (FRAME_WIDTH - POI_MENU_DIM) / 2 + 160}}
               source = {require('./src/components/no-image.png')}
             />
         : null}
@@ -942,6 +991,7 @@ export default class App extends Component {
         </TouchableOpacity>
 
         {this.state.commentInterface}
+        {this.state.fullImg}
 
       </View>
     );

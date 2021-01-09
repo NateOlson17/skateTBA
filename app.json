@@ -24,7 +24,15 @@
         "NSLocationWhenInUseUsageDescription": "Needed to track user location in order to show their position on the map, and properly display user skateboard icon/location.",
         "NSLocationUsageDescription": "Used to display user location to show position relative to points of interest on the main map.",
         "NSCameraUsageDescription": "Used to allow users to upload images and videos of good skating locations near them.",
-        "NSMicrophoneUsageDescription":  "Used to allow sound when a user uploads a video for a point of interest."
+        "NSMicrophoneUsageDescription": "Used to allow sound when a user uploads a video for a point of interest.",
+        "LSApplicationQueriesSchemes": [
+          "comgooglemaps",
+          "google-maps",
+          "apple-maps",
+          "uber",
+          "lyft",
+          "waze"
+        ]
       },
       "supportsTablet": true,
       "bundleIdentifier": "com.nateo.skateTBA",
