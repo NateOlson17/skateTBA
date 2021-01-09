@@ -12,15 +12,15 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
 import * as ImageManipulator from 'expo-image-manipulator';
+import CircleCheckBox, {LABEL_POSITION} from 'react-native-circle-checkbox';  
 
-//heading direction not updating frequently
 //prompt for rating when leaving area
 //settings/help
 //change radio buttons to skater icon
 //add star rating or allow users to change ratings? otherwise one user sets ratings forever
-//filter menu
+
+//filter types? not working
 //implement gestures
-//comments only pushing sample text
 
 //icon/splash/etc (icon 1024x1024)
 //in app.json, change: name, slug, bundleID (change in firebase as well)
@@ -65,12 +65,12 @@ export default class App extends Component {
       //general main process dynamic reference storage
 
       regionState: null, //carries region lat/lon and corresponding deltas
+      currentHeading: 0,
       didMount: false, //tracks component mount status for processes to eliminate memory leakage
       darkModeEnabled: false,
       displayPOImenu: false,
-      addPOImenu: null,
 
-      //data holds for user inputs awauting RTDB push
+      //data holds for user inputs awaiting RTDB push
       pendingPOI_skillLevel: null, //null-define unentered POI states by default
       pendingPOI_accessibility: null,
       pendingPOI_type: null,
@@ -82,10 +82,11 @@ export default class App extends Component {
       markers: [],
       filteredMarkers: [],
 
-      //selected POI display information
+      //selected/pending POI display information
       currentPOI: null,
       currentPOI_images: null,
       currentPOI_comments: null,
+      addPOImenu: null, //POI addition menu
 
       commentInterface: null,
       ipComment: "",
@@ -93,7 +94,8 @@ export default class App extends Component {
       //filter menu display
       filterMenu: null,
       condition_min: 0, condition_max: 10, security_min: 0, security_max: 10, 
-      skillLevel_min: 0, skillLevel_max: 10, accessibility_min: 0, accessibility_max: 10
+      skillLevel_min: 0, skillLevel_max: 10, accessibility_min: 0, accessibility_max: 10,
+      rampChecked: true, railChecked: true, ledgeChecked: true, gapChecked: true
     };
   }
 
@@ -115,10 +117,13 @@ export default class App extends Component {
           longitude: coords.longitude,
           latitudeDelta: 0.01, //establish deltas
           longitudeDelta: 0.01,
-          heading: coords.heading
         };
         this.setState({regionState: region}); //push region updates to state struct
       },
+    );
+
+    this.heading = await Location.watchHeadingAsync(
+      newHeading => {this.setState({currentHeading: newHeading.trueHeading});}
     );
     if (!this.state.didMount) {return;} //if component is unmounted, return to avoid tracking location for a defunct process
     return this.location; //otherwise, continue to return new locations every 100ms
@@ -424,6 +429,7 @@ export default class App extends Component {
                           </View>
                           <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 8}}>({poi_obj["security"]})</Text>
                         </View>
+                        <Text allowFontScaling = {false} style = {{fontWeight: 'bold', marginLeft: 63}}>Type:   {poi_obj.type}</Text>
                       </View>
 
                       <View style = {{marginTop: 45, marginLeft: 20}}>
@@ -624,13 +630,21 @@ export default class App extends Component {
 
   changeFilteredList = (condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max) => {
     console.log("updating filters");
+
+    let validTypes = [];
+    if (this.state.rampChecked) {validTypes.push('Ramp');}
+    if (this.state.railChecked) {validTypes.push('Rail');}
+    if (this.state.gapChecked) {validTypes.push('Gap');}
+    if (this.state.ledgeChecked) {validTypes.push('Ledge');}
+
+
     this.setState({condition_min: condition_min, condition_max: condition_max, security_min: security_min, security_max: security_max, accessibility_max: accessibility_max, accessibility_min: accessibility_min, skillLevel_max: skillLevel_max, skillLevel_min: skillLevel_min});
     let tempArr = [];
     for (i = 0; i < this.state.markers.length; i++) {
       let currMarker = this.state.markers[i];
       if (currMarker.condition <= condition_max && currMarker.condition >= condition_min && currMarker.security <= security_max 
           && currMarker.security >= security_min && currMarker.accessibility <= accessibility_max && currMarker.accessibility >= accessibility_min 
-          && currMarker.skillLevel <= skillLevel_max && currMarker.skillLevel >= skillLevel_min) {
+          && currMarker.skillLevel <= skillLevel_max && currMarker.skillLevel >= skillLevel_min && validTypes.includes(currMarker.type)) {
         tempArr.push(currMarker);
       }
     }
@@ -641,17 +655,18 @@ export default class App extends Component {
   showFilters = async () => {
     console.log("showing filters");
     if (this.state.filterMenu) {this.setState({filterMenu: null}); return;}
+    this.setState({currentPOI_comments: null, currentPOI_images: null, addPOImenu: null, displayPOImenu: null});
     let condition_min = this.state.condition_min; let condition_max = this.state.condition_max;
     let security_min = this.state.security_min; let security_max = this.state.security_max;
     let skillLevel_min = this.state.skillLevel_min; let skillLevel_max = this.state.skillLevel_max;
     let accessibility_min = this.state.accessibility_min; let accessibility_max = this.state.accessibility_max;
 
     this.setState({
-      filterMenu: <View style = {{height: 400, width: FRAME_WIDTH, position: 'absolute', top: 120, flexDirection: 'row', flexWrap: 'wrap'}}>
+      filterMenu: <View style = {{height: 300, width: FRAME_WIDTH, position: 'absolute', top: 120, flexDirection: 'row', flexWrap: 'wrap'}}>
 
                     <Image
                       source = {require('./src/components/selectedDisplay.png')}
-                      style = {{position: 'absolute', resizeMode: 'stretch', height: 400, width: FRAME_WIDTH}}
+                      style = {{position: 'absolute', resizeMode: 'stretch', height: 300, width: FRAME_WIDTH}}
                     />
 
                     <View style = {{width: FRAME_WIDTH / 2, alignItems: 'center', marginTop: 10}}>
@@ -787,7 +802,7 @@ export default class App extends Component {
                                       coordinate = {this.state.regionState}
                                       image = {require('./src/components/board.png')}
                                       flat
-                                      rotation = {this.state.regionState.heading} //rotate according to pulled heading from async tracking func
+                                      rotation = {this.state.currentHeading} //rotate according to pulled heading from async tracking func
                                     />
                                   : null/*conditionally render markerCond dependent upon the definition status of regionState*/}
           
@@ -808,8 +823,58 @@ export default class App extends Component {
         {this.state.currentPOI_images}
         {this.state.currentPOI_comments}
 
-        {this.state.filterMenu}
         {this.state.addPOImenu}
+
+        {this.state.filterMenu}
+        {this.state.filterMenu ?
+          <View style = {{width: FRAME_WIDTH, height: 50, position: 'absolute', top: 350, flexDirection: 'row'}}>
+            <CircleCheckBox
+            styleCheckboxContainer = {{paddingLeft: 20}}
+            allowFontScaling = {false}
+            checked = {this.state.rampChecked}
+            onToggle = {(checked) => {this.setState({rampChecked: checked});}}
+            label = "Ramps:"
+            labelPosition={LABEL_POSITION.LEFT}
+            styleLabel = {{fontWeight: 'bold'}}
+            outerColor = {POS_COLOR}
+            innerColor = {POS_COLOR}
+            />
+            <CircleCheckBox
+            styleCheckboxContainer = {{paddingLeft: 10}}
+            allowFontScaling = {false}
+            checked = {this.state.railChecked}
+            onToggle = {(checked) => {this.setState({railChecked: checked});}}
+            label = "Rails:"
+            labelPosition={LABEL_POSITION.LEFT}
+            styleLabel = {{fontWeight: 'bold'}}
+            outerColor = {POS_COLOR}
+            innerColor = {POS_COLOR}
+            />
+            <CircleCheckBox
+            styleCheckboxContainer = {{paddingLeft: 10}}
+            allowFontScaling = {false}
+            checked = {this.state.gapChecked}
+            onToggle = {(checked) => {this.setState({gapChecked: checked});}}
+            label = "Gaps:"
+            labelPosition={LABEL_POSITION.LEFT}
+            styleLabel = {{fontWeight: 'bold'}}
+            outerColor = {POS_COLOR}
+            innerColor = {POS_COLOR}
+            />
+            <CircleCheckBox
+            styleCheckboxContainer = {{paddingLeft: 10}}
+            allowFontScaling = {false}
+            checked = {this.state.ledgeChecked}
+            onToggle = {(checked) => {this.setState({ledgeChecked: checked});}}
+            label = "Ledges:"
+            labelPosition={LABEL_POSITION.LEFT}
+            styleLabel = {{fontWeight: 'bold'}}
+            outerColor = {POS_COLOR}
+            innerColor = {POS_COLOR}
+            />
+          </View>  
+        : null}
+        
 
         {this.state.displayPOImenu ? //conditionally render add image button (to refresh at maximum rate)
             <TouchableOpacity onPress = {this.selectImage} style = {{justifyContent: 'center', height: 31, width: 150, position: "absolute", bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 170, left: (FRAME_WIDTH - POI_MENU_DIM)/2 + 160}}>
