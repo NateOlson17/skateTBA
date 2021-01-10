@@ -13,16 +13,15 @@ import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
 import * as ImageManipulator from 'expo-image-manipulator';
 import CircleCheckBox, {LABEL_POSITION} from 'react-native-circle-checkbox';
-import { showLocation } from 'react-native-map-link'
+import { showLocation } from 'react-native-map-link';
+import { FlingGestureHandler, State, Directions } from 'react-native-gesture-handler';
+import Clipboard from 'expo-clipboard';
 
 //settings/info
 //change radio buttons to skater icon
-//filter types of poi
-//implement gestures
-//add animations
-//on large image view, add exit and allow swipe to view others
-//clean up code
-//ability to send poi via messages
+//filter types
+//implement gestures/animations
+//clean up code from filtering onwards
 
 //add star rating or allow users to change ratings? otherwise one user sets ratings forever
 //prompt for rating when leaving area
@@ -30,7 +29,6 @@ import { showLocation } from 'react-native-map-link'
 //widget that shows surrounding points
 //app rating prompts
 //haptics/3d touch (which models?)
-//restore previous screen when app reloads
 //icon/splash/etc (icon 1024x1024)
 //make sure permissions dont break the app
 //test different ios versions
@@ -58,9 +56,7 @@ const darkMapStyle = [ //generate dark map style (stored locally)
   {"featureType": "water", "elementType": "labels.text.stroke", "stylers": [{"color": "#17263c"}]}
 ];
 
-const POS_COLOR = '#6cccdc'; //blue theme color
-const NEG_COLOR = '#dc6c6c'; //red theme color
-const NEUTRAL_COLOR = '#041c4b'; //dark blue theme color
+const POS_COLOR = '#6cccdc'; const NEG_COLOR = '#dc6c6c'; const NEUTRAL_COLOR = '#041c4b';
 
 //dimension reading and proportion fallback determinations
 const FRAME_WIDTH = Dimensions.get('window').width;
@@ -70,7 +66,6 @@ const DM_ICON_DIM = FRAME_WIDTH * .15;
 const POI_MENU_DIM = 338;
 
 export default class App extends Component {
-  
   constructor(props) {
     super(props);
     this.state = {
@@ -117,38 +112,36 @@ export default class App extends Component {
   /////////////////////////////////////////////////LOCATION AND MOUNT TASKS///////////////////////////////////////////////////////////////////////
 
   _getLocationAsync = async () => { //location grabber func, operates as a background process (asynchronously)
+    if (!this.state.didMount) {return;} //if component is unmounted, return to avoid tracking for a defunct process
     this.location = await Location.watchPositionAsync(
-      {
+      { //options
         enableHighAccuracy: true,
         distanceInterval: .1, //units of degrees lat/lon
-        timeInterval: 10 //updates location every 100ms
+        timeInterval: 100 //updates location every 100ms
       },
-
-      newLocation => { //update location
-        let { coords } = newLocation; //save new location found
-        let region = {
-          latitude: coords.latitude, //rip lat and lon from newLocation var stored in coords
-          longitude: coords.longitude,
-          latitudeDelta: 0.01, //establish deltas
-          longitudeDelta: 0.01,
-        };
-        this.setState({regionState: region}); //push region updates to state struct
+      newLocation => { //"on event refresh" function
+        let { coords } = newLocation;
+        this.setState({regionState: {
+                                      latitude: coords.latitude, //rip lat and lon from newLocation var stored in coords
+                                      longitude: coords.longitude,
+                                      latitudeDelta: 0.01, //establish deltas
+                                      longitudeDelta: 0.01,
+                                    }
+        }); //push region updates to state struct
       },
     );
 
     this.heading = await Location.watchHeadingAsync(
-      newHeading => {this.setState({currentHeading: newHeading.trueHeading});}
+      newHeading => {this.setState({currentHeading: newHeading.trueHeading});} //update state on heading event refresh
     );
-    if (!this.state.didMount) {return;} //if component is unmounted, return to avoid tracking location for a defunct process
-    return this.location; //otherwise, continue to return new locations every 100ms
   };
 
   componentDidMount = async () => { //when main component is mounted
-    console.log("FW=>", FRAME_WIDTH); //display frame dimensions in console (UIkit sizes, not true pixel)
-    console.log("FH=>", FRAME_HEIGHT);
+    console.log("FW =>", FRAME_WIDTH); //display frame dimensions in console (UIkit sizes, not true pixel)
+    console.log("FH =>", FRAME_HEIGHT);
     this.setState({didMount: true}); //update state var to indicate mount
     
-    db.ref('/poi').on('value', (snapshot) => { //pull markers from RTDB
+    db.ref('/poi').on('value', (snapshot) => { //pull snapshot from RTDB
       let markersTemp = snapshot.val(); //capture snapshot values
       markersTemp = Object.keys(markersTemp).map((key) => [String(key), markersTemp[key]]); //map object string identifiers assigned by Firebase to object info
       this.setState({markers: []});
@@ -178,10 +171,11 @@ export default class App extends Component {
 
   initiate_addPOI = () => { //when "add POI" button is pressed, triggers this function
     this.nullifyCurrentPOI(); //remove "current POI" menu/display
-    this.setState({filterMenu: null, pendingPOI_image: null, pendingPOI_type: null}); //remove filter menu
-    console.log("setting POI to", !this.state.displayPOImenu);
+    this.setState({filterMenu: null, pendingPOI_image: null, pendingPOI_type: null}); //remove filter menu, reset pending image and type data
     this.setState({displayPOImenu: !this.state.displayPOImenu}); //flip POI menu display state
-    if (this.state.displayPOImenu) {this.setState({addPOImenu: null}); return;}
+    console.log("set POI addition menu:", this.state.displayPOImenu ? "NOT visible" : "visible");
+    
+    if (this.state.displayPOImenu) {this.setState({addPOImenu: null}); return;} //if POI addition menu is already visible, nullify it
     this.setState({
       addPOImenu: <View //wrapper view for POI menu content
                     style = {{
@@ -258,23 +252,11 @@ export default class App extends Component {
                       />
                     </View>
 
-                    <View //divider line after sliders on POI menu
-                      style = {{
-                        width: POI_MENU_DIM,
-                        backgroundColor: NEUTRAL_COLOR,
-                        height: 1
-                      }}
-                    >
-                    </View>
+                    <View style = {{width: POI_MENU_DIM, backgroundColor: NEUTRAL_COLOR, height: 1}}/*divider line*//>
                     
                     <RadioButtonRN //radio button array
                       style = {{paddingLeft: POI_MENU_DIM * .15}}
-                      data = {[
-                        {label: 'Ramp'},
-                        {label: 'Rail'},
-                        {label: 'Ledge'},
-                        {label: 'Gap'}
-                      ]}
+                      data = {[{label: 'Ramp'}, {label: 'Rail'}, {label: 'Ledge'}, {label: 'Gap'}]}
                       box = {false}
                       icon = {
                         <Icon //from react-native-vector-icons library
@@ -283,41 +265,35 @@ export default class App extends Component {
                           color = {POS_COLOR}
                         />
                       }
-                      selectedBtn = {(e) => {this.state.pendingPOI_type = e['label']}} //set POI type state variable on radio button select
+                      selectedBtn = {(e) => {this.state.pendingPOI_type = e.label}} //set POI type state variable on radio button select
                       animationTypes = {['pulse', 'rotate']}
                     /> 
                     <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold', lineHeight: 38, paddingLeft: POI_MENU_DIM * .035}}>
                       Ramp{'\n'}Rail{'\n'}Ledge{'\n'}Gap{'\n'}
                     </Text>
 
-                    <TouchableOpacity onPress = {this.pushPOIdata} style = {{zIndex: 7, position: 'absolute', top: 300, right: 20, width: POI_MENU_DIM * .2, height: POI_MENU_DIM * .2}}>  
+                    <TouchableOpacity onPress = {this.pushPOIdata} style = {{position: 'absolute', top: 300, right: 20, width: POI_MENU_DIM * .2, height: POI_MENU_DIM * .2}}>  
                       <Image
                         source = {require('./src/components/submitPOI.png')} //submit button for POI info
-                        style = {{
-                          position: 'absolute',
-                          width: POI_MENU_DIM * .2,
-                          height: POI_MENU_DIM * .2,
-                          resizeMode: 'contain',
-                          zIndex: 8
-                        }}
+                        style = {{position: 'absolute', width: POI_MENU_DIM * .2, height: POI_MENU_DIM * .2, resizeMode: 'contain'}}
                       />
                     </TouchableOpacity>
                   </View>
-    })
+    });
   };
 
   darkModeSwitch = () => { //enable dark mode if disabled, and vice versa, called when mode button pressed
-    console.log("setting dm to", !this.state.darkModeEnabled);
     this.setState({darkModeEnabled: !this.state.darkModeEnabled});
+    console.log("set mode to", this.state.darkModeEnabled ? "LIGHT" : "DARK");
   };
 
   initBugReport = () => {
+    console.log("initiating bug report");
     text("17085574833", "Bug Report or Suggestion:\n"); //prompt with text window/prefilled message
   };
 
   pushPOIdata = async () => { //push pending POI data to the RTDB
-    if (this.state.pendingPOI_skillLevel != null && this.state.pendingPOI_accessibility != null && this.state.pendingPOI_condition != null
-      && this.state.pendingPOI_security != null && this.state.pendingPOI_type && this.state.regionState && this.state.pendingPOI_image) { //verify definition of POI props
+    if (this.state.pendingPOI_type && this.state.regionState && this.state.pendingPOI_image) { //verify definition of POI props
       console.log("pushing to RTDB");
       db.ref('/poi').push({ //push POI data to directory
         skillLevel: this.state.pendingPOI_skillLevel,
@@ -340,19 +316,18 @@ export default class App extends Component {
     return result.base64;
   };
 
-  selectImage = async () => { //triggered by select image button on POI menu
+  selectImage = async () => { //triggered by select image button on POI addition menu
     const {status} = await Permissions.askAsync(Permissions.CAMERA); //prompt for cam perms
     console.log("cam perms", status);
     if (status !== "granted") { //if perms denied
-      Alert.alert("You need to allow camera permissions to take pictures of the cool skate spots you find!\n\nTo change this, visit the Settings app, find this app towards the bottom, and enable.");
+      Alert.alert("You need to allow camera permissions to take pictures of the cool skate spots you find!\n\nTo change this, visit the Settings app, find this app towards the bottom, and enable."); return;
     }
 
     let result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All, //allow photo/video
+      mediaTypes: ImagePicker.MediaTypeOptions.Images, //allow photos
       allowsEditing: true,
       aspect: [1, 1], //require square crop
       quality: .5,
-      videoMaxDuration: 30
     });
 
     if (!result.cancelled) { //if image submitted
@@ -377,9 +352,9 @@ export default class App extends Component {
     let accessibilityIndicatorLM = new Animated.Value(0); let skillLevelIndicatorLM = new Animated.Value(0);
     let securityIndicatorLM = new Animated.Value(0); let conditionIndicatorLM = new Animated.Value(0);
     this.setState({
-      currentPOI: <View style = {{position: 'absolute', bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 10, height: 200, width: FRAME_WIDTH, flexDirection: 'row', zIndex: 7}}>
+      currentPOI: <View style = {{position: 'absolute', bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 10, height: 200, width: FRAME_WIDTH, flexDirection: 'row'}}>
                       <Image //renders back image for POI display menu
-                        source = {require('./src/components/selectedDisplay.png')} //submit button for POI info
+                        source = {require('./src/components/selectedDisplay.png')} 
                         style = {styles.POIdisplayBG}
                       />
 
@@ -388,11 +363,11 @@ export default class App extends Component {
                           <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Accessibility:</Text>
                           <View style = {{paddingLeft: 10}}>
                             <Image
-                              source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
+                              source = {require('./src/components/rating_displayBar.png')} 
                               style = {styles.displayBar}
                             />
                             <Animated.Image
-                              source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
+                              source = {require('./src/components/POIdisplay_indicator.png')} 
                               style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["accessibility"] === 0 ? 1 : accessibilityIndicatorLM}}
                             />
                           </View>
@@ -403,11 +378,11 @@ export default class App extends Component {
                           <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Skill Level:</Text>
                           <View style = {{paddingLeft: 10,}}>
                             <Image
-                              source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
+                              source = {require('./src/components/rating_displayBar.png')} 
                               style = {styles.displayBar}
                             />
                             <Animated.Image
-                              source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
+                              source = {require('./src/components/POIdisplay_indicator.png')} 
                               style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["skillLevel"] === 0 ? 1 : skillLevelIndicatorLM}}
                             />
                           </View>
@@ -418,11 +393,11 @@ export default class App extends Component {
                           <Text  allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Condition:</Text>
                           <View style = {{paddingLeft: 10}}>
                             <Image
-                              source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
+                              source = {require('./src/components/rating_displayBar.png')} 
                               style = {styles.displayBar}
                             />
                             <Animated.Image
-                              source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
+                              source = {require('./src/components/POIdisplay_indicator.png')} 
                               style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["condition"] === 0 ? 1 : conditionIndicatorLM}}
                             />
                           </View>
@@ -433,11 +408,11 @@ export default class App extends Component {
                           <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Security:</Text>
                           <View style = {{paddingLeft: 10,}}>
                             <Image
-                              source = {require('./src/components/rating_displayBar.png')} //submit button for POI info
+                              source = {require('./src/components/rating_displayBar.png')} 
                               style = {styles.displayBar}
                             />
                             <Animated.Image
-                              source = {require('./src/components/POIdisplay_indicator.png')} //submit button for POI info
+                              source = {require('./src/components/POIdisplay_indicator.png')} 
                               style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["security"] === 0 ? 1 : securityIndicatorLM}}
                             />
                           </View>
@@ -476,11 +451,17 @@ export default class App extends Component {
                         </TouchableOpacity>
                       </View>
 
-                      <View style = {{position: 'absolute', top: 135, right: 80}}>
+                      <View style = {{position: 'absolute', top: 135, right: 45, flexDirection: 'row'}}>
                         <TouchableOpacity onPress = {() => {this.initiateNavigation(poi_obj)}}>
                           <Image
                             source = {require('./src/components/navigationPin.png')}
-                            style = {{resizeMode: 'contain', height: 40, width: 40}}
+                            style = {{resizeMode: 'contain', height: 45, width: 45}}
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress = {() => {this.sharePOIurl(poi_obj)}}>
+                        <Image
+                            source = {require('./src/components/sharePOI.png')}
+                            style = {{resizeMode: 'contain', height: 50, width: 50, marginLeft: 10}}
                           />
                         </TouchableOpacity>
                       </View>
@@ -494,7 +475,7 @@ export default class App extends Component {
 
                     </View>
     });
-    Animated.spring(accessibilityIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["accessibility"]}).start();
+    Animated.spring(accessibilityIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["accessibility"]}).start(); //animate indicators
     Animated.spring(conditionIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["condition"]}).start();
     Animated.spring(skillLevelIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["skillLevel"]}).start();
     Animated.spring(securityIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["security"]}).start();
@@ -503,63 +484,76 @@ export default class App extends Component {
   enableCurrentPOI_images = poi_obj => {
     console.log("displaying images");
     this.nullifyCommentMenu();
+    this.setState({filterMenu: null});
 
     let animVal = new Animated.Value(2 * FRAME_HEIGHT);
     this.setState({
-      currentPOI_images:  <Animated.View style = {{position: 'absolute', width: FRAME_WIDTH, height: FRAME_HEIGHT, top: animVal, zIndex: 0}}>
-                            <View style = {styles.POIdisplayAdditionalMenu_ContentWrapper}>
-                              <Image //renders back image for POI image display menu
-                                source = {require('./src/components/selectedDisplay.png')} //submit button for POI info
-                                style = {{
-                                  resizeMode: 'contain', 
-                                  position: 'absolute',  
-                                  height: 200, 
-                                  width: FRAME_WIDTH,
-                                }}
-                              />
-
-                              <FlatList
-                                style = {{paddingLeft: 20}}
-                                data = {poi_obj.images}
-                                renderItem = {({ item }) => ( 
-                                                              <TouchableOpacity onPress = {() => {this.displayFullsizeImage(item)}}>
-                                                                <Image source = {{uri: `data:image/jpeg;base64,${item.data}`}} style = {{zIndex: 5, height: 140, width: 140, resizeMode: 'contain', alignSelf: 'center', marginRight: 15, marginTop: 30}}/>
-                                                              </TouchableOpacity> 
-                                                            )}
-                                horizontal = {true}
-                                initialNumToRender = {5}
-                              />
-
-                              <TouchableOpacity onPress = {() => {this.nullifyImageMenu()}} style = {styles.POIexit_TO}>
-                                <Image
-                                  source = {require('./src/components/pointDisplay_x.png')} //submit button for POI info
-                                  style = {styles.POIexit_generic}
+      currentPOI_images:  <FlingGestureHandler //handles swipe-down
+                            direction = {Directions.DOWN}
+                            onHandlerStateChange={({ nativeEvent }) => {
+                              if (nativeEvent.state === State.ACTIVE) {
+                                Animated.timing(animVal, {useNativeDriver: false, toValue: 2 * FRAME_HEIGHT}).start(); //animates swipe-down
+                                  setTimeout(() => {
+                                    this.setState({currentPOI_images: null}); //after 100ms delay, nullify images panel
+                                  }, 100);
+                              }
+                          }}>
+                            <Animated.View style = {{position: 'absolute', width: FRAME_WIDTH, height: FRAME_HEIGHT, top: animVal, zIndex: 0}}>
+                              <View style = {styles.POIdisplayAdditionalMenu_ContentWrapper}>
+                                <Image //renders back image for POI image display menu
+                                  source = {require('./src/components/selectedDisplay.png')} 
+                                  style = {{resizeMode: 'contain', position: 'absolute',  height: 200, width: FRAME_WIDTH}}
                                 />
-                              </TouchableOpacity>
-                            </View>
-                          </Animated.View>
+
+                                <FlatList
+                                  style = {{paddingLeft: 20}}
+                                  data = {poi_obj.images}
+                                  renderItem = {({ item }) => ( 
+                                                                <TouchableOpacity onPress = {() => {this.displayFullsizeImage(item)}}>
+                                                                  <Image source = {{uri: `data:image/jpeg;base64,${item.data}`}} style = {styles.FlatListPerImg}/>
+                                                                </TouchableOpacity> 
+                                                              )}
+                                  horizontal = {true}
+                                  initialNumToRender = {5}
+                                />
+
+                                <TouchableOpacity onPress = {() => {this.nullifyImageMenu()}} style = {styles.POIexit_TO}>
+                                  <Image
+                                    source = {require('./src/components/pointDisplay_x.png')}
+                                    style = {styles.POIexit_generic}
+                                  />
+                                </TouchableOpacity>
+                              </View>
+                            </Animated.View>
+                          </FlingGestureHandler>
     });
-    Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: 0}).start();
+    Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: 0}).start(); //animate menu slide-in
   };
 
-  displayFullsizeImage = img => {
-    this.setState({fullImg: 
-                            <View style = {{zIndex: 8, position: 'absolute', width: FRAME_WIDTH, height: FRAME_HEIGHT, backgroundColor: 'rgba(255, 255, 255, 0.8)', justifyContent: 'center', alignContent: 'center'}}>
-                              <Image source = {{uri: `data:image/jpeg;base64,${img.data}`}} style = {{height: FRAME_WIDTH, width: FRAME_WIDTH, resizeMode: 'contain'}}/>
-                            </View>
+  displayFullsizeImage = img => {//display fullscreen image with swipe-down handler (no animation)
+    this.setState({fullImg: <FlingGestureHandler
+                              direction = {Directions.DOWN}
+                              onHandlerStateChange={({ nativeEvent }) => {
+                                if (nativeEvent.state === State.ACTIVE) {
+                                  this.setState({fullImg: null});
+                                }
+                            }}>
+                              <View style = {styles.fullScreenImgView}>
+                                <Image source = {{uri: `data:image/jpeg;base64,${img.data}`}} style = {{height: FRAME_WIDTH, width: FRAME_WIDTH, resizeMode: 'contain'}}/>
+                              </View>
+                            </FlingGestureHandler>                       
     });
-  }
+  };
 
   addPOIimage = async poi_obj => {
     console.log("adding image");
 
     let currentImages = poi_obj.images;
-
     let imageTemp = null; //used to hold new image data
-    const {status} = await Permissions.askAsync(Permissions.CAMERA); //prompt for cam perms
+    const { status } = await Permissions.askAsync(Permissions.CAMERA); //prompt for cam perms
     console.log("cam perms", status);
     if (status !== "granted") { //if perms denied
-      Alert.alert("You need to allow camera permissions to take pictures of the cool skate spots you find!\n\nTo change this, visit the Settings app, find this app towards the bottom, and enable.");
+      Alert.alert("You need to allow camera permissions to take pictures of the cool skate spots you find!\n\nTo change this, visit the Settings app, find this app towards the bottom, and enable."); return;
     }
 
     let addResult = await ImagePicker.launchCameraAsync({
@@ -581,46 +575,60 @@ export default class App extends Component {
   enableCurrentPOI_comments = poi_obj => {
     console.log("displaying comments");
     this.nullifyImageMenu();
+    this.setState({filterMenu: null});
 
     let animVal = new Animated.Value(2 * FRAME_HEIGHT);
     this.setState({
-      ipComment: "",
-      currentPOI_comments:  <Animated.View style = {{position: 'absolute', width: FRAME_WIDTH, height: FRAME_HEIGHT, top: animVal}}>
-                              <View style = {styles.POIdisplayAdditionalMenu_ContentWrapper}>
-                                <Image //renders back image for POI display menu
-                                  source = {require('./src/components/selectedDisplay.png')}
-                                  style = {styles.POIdisplayBG}
-                                />
-
-                                {
-                                poi_obj.comments ?
-                                  <FlatList
-                                    style = {{paddingLeft: 20, zIndex: 6, marginTop: 40}}
-                                    data = {poi_obj.comments}
-                                    renderItem = {({ item }) => (<Text style = {{width: 200, height: 180}} allowFontScaling = {false}>{item.text}</Text>)}
-                                    horizontal = {true}
-                                    initialNumToRender = {5}
-                                  />
-                                :
-                                  <Text allowFontScaling = {false} style = {{alignSelf: "center"}}>NO COMMENTS</Text>
+      currentPOI_comments:  <FlingGestureHandler
+                              direction = {Directions.DOWN}
+                              onHandlerStateChange={({ nativeEvent }) => {
+                                if (nativeEvent.state === State.ACTIVE) {
+                                  Animated.timing(animVal, {useNativeDriver: false, toValue: 2 * FRAME_HEIGHT}).start(); //swipe-down animation
+                                  setTimeout(() => {
+                                    this.setState({currentPOI_comments: null}); //delay to present animation, then nullify
+                                  }, 100);
                                 }
-
-                                <TouchableOpacity onPress = {() => {this.nullifyCommentMenu()}} style = {styles.POIexit_TO}>
-                                  <Image
-                                    source = {require('./src/components/pointDisplay_x.png')} //submit button for POI info
-                                    style = {styles.POIexit_generic}
+                            }}>
+                              <Animated.View style = {{position: 'absolute', width: FRAME_WIDTH, height: FRAME_HEIGHT, top: animVal}}>
+                                <View style = {styles.POIdisplayAdditionalMenu_ContentWrapper}>
+                                  <Image //renders back image for POI display menu
+                                    source = {require('./src/components/selectedDisplay.png')}
+                                    style = {styles.POIdisplayBG}
                                   />
-                                </TouchableOpacity>
-                              </View>
-                            </Animated.View>
+
+                                  {
+                                  poi_obj.comments ?
+                                    <FlatList
+                                      style = {{paddingLeft: 20, zIndex: 6, marginTop: 40}}
+                                      data = {poi_obj.comments}
+                                      renderItem = {({ item }) => (<Text style = {{width: 200, height: 180}} allowFontScaling = {false}>{item.text}</Text>)}
+                                      horizontal = {true}
+                                      initialNumToRender = {5}
+                                    />
+                                  :
+                                    <Text allowFontScaling = {false} style = {{alignSelf: "center"}}>NO COMMENTS</Text>
+                                  }
+
+                                  <TouchableOpacity onPress = {() => {this.nullifyCommentMenu()}} style = {styles.POIexit_TO}>
+                                    <Image
+                                      source = {require('./src/components/pointDisplay_x.png')} 
+                                      style = {styles.POIexit_generic}
+                                    />
+                                  </TouchableOpacity>
+                                </View>
+                              </Animated.View>
+                            </FlingGestureHandler>
     });
-    Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: 0}).start();
+    Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: 0}).start(); //appearance animation
   };
 
   addPOIcomment = poi_obj => {
     console.log("adding comment");
     this.nullifyCurrentPOI();
+    this.setState({filterMenu: null});
+
     this.setState({
+      ipComment: '',
       commentInterface: <View style = {{position: 'absolute', height: FRAME_HEIGHT, width: FRAME_WIDTH, backgroundColor: 'rgba(255, 255, 255, 0.8)'}}>
                           <TouchableOpacity onPress = {() => {this.setState({commentInterface: null});}} style = {{position: 'absolute', height: FRAME_WIDTH * .07, width: FRAME_WIDTH * .07, top: 60, right: 50}}>
                             <Image
@@ -652,9 +660,9 @@ export default class App extends Component {
 
   POIcommentSubmissionHandler = poi_obj => {
     console.log("submitting comment");
-    if (!this.state.ipComment) {return;}
+    if (!this.state.ipComment) {return;} //if comment empty, ignore
     this.setState({commentInterface: null});
-    let currentComments = poi_obj.comments ? poi_obj.comments : [];
+    let currentComments = poi_obj.comments ? poi_obj.comments : []; //if the comments list exists, use it, otherwise use an empty array
     currentComments.push({key: currentComments.length.toString(), text: this.state.ipComment})
     db.ref(`/poi/${poi_obj.id}`).update({comments: currentComments});
   }
@@ -664,14 +672,21 @@ export default class App extends Component {
     showLocation({
       latitude: poi_obj.regionState.latitude,
       longitude: poi_obj.regionState.longitude,
-      sourceLatitude: this.state.regionState.latitude,  // optionally specify starting location for directions
-      sourceLongitude: this.state.regionState.longitude,  // not optional if sourceLatitude is specified
-      alwaysIncludeGoogle: true, // optional, true will always add Google Maps to iOS and open in Safari, even if app is not installed (default: false)
-      dialogTitle: 'Select an app to open this skate spot!', // optional (default: 'Open in Maps')
-      dialogMessage: 'These are the compatible apps we found on your device.', // optional (default: 'What app would you like to use?')
-      cancelText: 'No thanks, I don\'t want to hit this spot.', // optional (default: 'Cancel')
+      sourceLatitude: this.state.regionState.latitude, 
+      sourceLongitude: this.state.regionState.longitude, 
+      alwaysIncludeGoogle: true, 
+      dialogTitle: 'Select an app to open this skate spot!',
+      dialogMessage: 'These are the compatible apps we found on your device.',
+      cancelText: 'No thanks, I don\'t want to hit this spot.'
     });
   };
+
+  sharePOIurl = poi_obj => {
+    const POIurl = `maps.google.com/maps?q=${poi_obj.regionState.latitude},${poi_obj.regionState.longitude}`;
+    console.log("sharing POI", POIurl);
+    Clipboard.setString(POIurl);
+    Alert.alert("Link copied to clipboard.");
+  }
 
 
 
@@ -710,8 +725,9 @@ export default class App extends Component {
     let skillLevel_min = this.state.skillLevel_min; let skillLevel_max = this.state.skillLevel_max;
     let accessibility_min = this.state.accessibility_min; let accessibility_max = this.state.accessibility_max;
 
+    let animVal = new Animated.Value(-500);
     this.setState({
-      filterMenu: <View style = {{height: 300, width: FRAME_WIDTH, position: 'absolute', top: 120, flexDirection: 'row', flexWrap: 'wrap'}}>
+      filterMenu: <Animated.View style = {{height: 300, width: FRAME_WIDTH, position: 'absolute', top: animVal, flexDirection: 'row', flexWrap: 'wrap'}}>
 
                     <Image
                       source = {require('./src/components/selectedDisplay.png')}
@@ -782,8 +798,9 @@ export default class App extends Component {
                       />
                     </View>
 
-                  </View>
+                  </Animated.View>
     });
+    Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: 120}).start();
   };
 
 
@@ -928,7 +945,7 @@ export default class App extends Component {
         {this.state.displayPOImenu ? //conditionally render add image button (to refresh at maximum rate)
             <TouchableOpacity onPress = {this.selectImage} style = {{justifyContent: 'center', height: 31, width: 150, position: "absolute", bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 170, left: (FRAME_WIDTH - POI_MENU_DIM)/2 + 160}}>
               <Image
-                source = {this.state.pendingPOI_image ? require('./src/components/uploadimg_pos.png') : require('./src/components/uploadimg_neg.png')} //submit button for POI info
+                source = {this.state.pendingPOI_image ? require('./src/components/uploadimg_pos.png') : require('./src/components/uploadimg_neg.png')} 
                 style = {{
                   resizeMode: 'contain',
                   width: 150,
@@ -1037,6 +1054,26 @@ const styles = StyleSheet.create({
     width: FRAME_WIDTH, 
     height: 200, 
     bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 210, 
+    justifyContent: 'center', 
+    alignContent: 'center'
+  },
+
+  FlatListPerImg: {
+    zIndex: 5, 
+    height: 140, 
+    width: 140, 
+    resizeMode: 'contain', 
+    alignSelf: 'center', 
+    marginRight: 15, 
+    marginTop: 30
+  },
+
+  fullScreenImgView: {
+    zIndex: 8, 
+    position: 'absolute', 
+    width: FRAME_WIDTH, 
+    height: FRAME_HEIGHT, 
+    backgroundColor: 'rgba(255, 255, 255, 0.8)', 
     justifyContent: 'center', 
     alignContent: 'center'
   }
