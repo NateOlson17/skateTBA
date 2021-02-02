@@ -8,7 +8,6 @@ import { text } from 'react-native-communications';
 import { db } from './src/config';
 import RangeSlider, { Slider } from 'react-native-range-slider-expo';
 import RadioButtonRN from 'radio-buttons-react-native';
-import Icon from 'react-native-vector-icons/FontAwesome';
 import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -17,10 +16,15 @@ import { showLocation } from 'react-native-map-link';
 import { FlingGestureHandler, State, Directions } from 'react-native-gesture-handler';
 import Clipboard from 'expo-clipboard';
 
+import { createIconSetFromFontello } from 'react-native-vector-icons';
+import fontelloConfig from './src/fonts/config.json';
+const Icon = createIconSetFromFontello(fontelloConfig);
+import * as Font from 'expo-font';
+
 //settings/info
 //change radio buttons to skater icon
 //filter types
-//implement gestures/animations
+//implement animation for POI addition menu
 //clean up code from filtering onwards
 
 //add star rating or allow users to change ratings? otherwise one user sets ratings forever
@@ -33,7 +37,6 @@ import Clipboard from 'expo-clipboard';
 //make sure permissions dont break the app
 //test different ios versions
 //shake to refresh
-//add purpose strings when requesting perms
 
 const darkMapStyle = [ //generate dark map style (stored locally)
   {"elementType": "geometry", "stylers": [{"color": "#242f3e"}]},
@@ -64,6 +67,9 @@ const FRAME_HEIGHT =  Dimensions.get('window').height;
 const PLUS_ICON_DIM = FRAME_WIDTH * .25;
 const DM_ICON_DIM = FRAME_WIDTH * .15;
 const POI_MENU_DIM = 338;
+
+let imageButtonAnimVal = new Animated.Value(-500);
+let imageSampleAnimVal = new Animated.Value(-500);
 
 export default class App extends Component {
   constructor(props) {
@@ -159,6 +165,8 @@ export default class App extends Component {
       Alert.alert("You need to allow location permissions for the map to function properly!\n\nTo change this, visit the Settings app, find this app towards the bottom, and enable.");
     }
     console.log("location perms", status);
+
+    await Font.loadAsync({fontello: require('./src/fonts/fontello.ttf')});
   };
 
   componentWillUnmount = () => {this.setState({didMount: false})}; //update state (checked for in _getLocationAsync)
@@ -176,11 +184,14 @@ export default class App extends Component {
     console.log("set POI addition menu:", this.state.displayPOImenu ? "NOT visible" : "visible");
     
     if (this.state.displayPOImenu) {this.setState({addPOImenu: null}); return;} //if POI addition menu is already visible, nullify it
+    let animVal = new Animated.Value(-500);
+    imageButtonAnimVal = new Animated.Value(-500);
+    imageSampleAnimVal = new Animated.Value(-500);
     this.setState({
-      addPOImenu: <View //wrapper view for POI menu content
+      addPOImenu: <Animated.View //wrapper view for POI menu content
                     style = {{
                       position: 'absolute',
-                      bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM,
+                      bottom: animVal,
                       left: (FRAME_WIDTH - POI_MENU_DIM)/2,
                       width: POI_MENU_DIM,
                       height: 452,
@@ -260,7 +271,7 @@ export default class App extends Component {
                       box = {false}
                       icon = {
                         <Icon //from react-native-vector-icons library
-                          name = "check-circle-o"
+                          name = "boy-on-skateboard-silhouette"
                           size = {25}
                           color = {POS_COLOR}
                         />
@@ -278,8 +289,11 @@ export default class App extends Component {
                         style = {{position: 'absolute', width: POI_MENU_DIM * .2, height: POI_MENU_DIM * .2, resizeMode: 'contain'}}
                       />
                     </TouchableOpacity>
-                  </View>
+                  </Animated.View>
     });
+    Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: FRAME_HEIGHT * .04 + PLUS_ICON_DIM}).start();
+    Animated.spring(imageButtonAnimVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 170}).start();
+    Animated.spring(imageSampleAnimVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 85}).start();
   };
 
   darkModeSwitch = () => { //enable dark mode if disabled, and vice versa, called when mode button pressed
@@ -348,14 +362,29 @@ export default class App extends Component {
     console.log('POI activated; id =>', poi_obj.id);
     this.nullifyCommentMenu();
     this.nullifyImageMenu();
-
+    let viewAnim = new Animated.Value(-500);
     let accessibilityIndicatorLM = new Animated.Value(0); let skillLevelIndicatorLM = new Animated.Value(0);
     let securityIndicatorLM = new Animated.Value(0); let conditionIndicatorLM = new Animated.Value(0);
     this.setState({
-      currentPOI: <View style = {{position: 'absolute', bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 10, height: 200, width: FRAME_WIDTH, flexDirection: 'row'}}>
+      currentPOI: <FlingGestureHandler //handles swipe-down
+                    direction = {Directions.DOWN}
+                    onHandlerStateChange={({ nativeEvent }) => {
+                      if (nativeEvent.state === State.ACTIVE) {
+                        Animated.timing(viewAnim, {useNativeDriver: false, toValue: -500}).start(); //animates swipe-down
+                          setTimeout(() => {
+                            this.setState({currentPOI: null}); //after 200ms delay, nullify main POI panel
+                          }, 200);
+                      }
+                  }}>
+                    <Animated.View style = {{position: 'absolute', bottom: viewAnim, height: 200, width: FRAME_WIDTH, flexDirection: 'row'}}>
                       <Image //renders back image for POI display menu
                         source = {require('./src/components/selectedDisplay.png')} 
                         style = {styles.POIdisplayBG}
+                      />
+
+                      <Image //renders gesture indicator bar
+                        source = {require('./src/components/gestureBar.png')}
+                        style = {styles.gestureBar}
                       />
 
                       <View>
@@ -473,12 +502,16 @@ export default class App extends Component {
                         />
                       </TouchableOpacity>
 
-                    </View>
+                    </Animated.View>
+                  </FlingGestureHandler>
     });
-    Animated.spring(accessibilityIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["accessibility"]}).start(); //animate indicators
-    Animated.spring(conditionIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["condition"]}).start();
-    Animated.spring(skillLevelIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["skillLevel"]}).start();
-    Animated.spring(securityIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["security"]}).start();
+    Animated.spring(viewAnim, {useNativeDriver: false, friction: 5, tension: 4, toValue: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 10}).start();
+    setTimeout(() => {
+      Animated.spring(accessibilityIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["accessibility"]}).start(); //animate indicators
+      Animated.spring(conditionIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["condition"]}).start();
+      Animated.spring(skillLevelIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["skillLevel"]}).start();
+      Animated.spring(securityIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["security"]}).start();
+    }, 300);
   };
 
   enableCurrentPOI_images = poi_obj => {
@@ -503,6 +536,11 @@ export default class App extends Component {
                                 <Image //renders back image for POI image display menu
                                   source = {require('./src/components/selectedDisplay.png')} 
                                   style = {{resizeMode: 'contain', position: 'absolute',  height: 200, width: FRAME_WIDTH}}
+                                />
+
+                                <Image //renders gesture indicator bar
+                                  source = {require('./src/components/gestureBar.png')}
+                                  style = {styles.gestureBar}
                                 />
 
                                 <FlatList
@@ -594,6 +632,11 @@ export default class App extends Component {
                                   <Image //renders back image for POI display menu
                                     source = {require('./src/components/selectedDisplay.png')}
                                     style = {styles.POIdisplayBG}
+                                  />
+
+                                  <Image //renders gesture indicator bar
+                                    source = {require('./src/components/gestureBar.png')}
+                                    style = {styles.gestureBar}
                                   />
 
                                   {
@@ -943,7 +986,8 @@ export default class App extends Component {
         
 
         {this.state.displayPOImenu ? //conditionally render add image button (to refresh at maximum rate)
-            <TouchableOpacity onPress = {this.selectImage} style = {{justifyContent: 'center', height: 31, width: 150, position: "absolute", bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 170, left: (FRAME_WIDTH - POI_MENU_DIM)/2 + 160}}>
+          <Animated.View style = {{position: "absolute", bottom: imageButtonAnimVal, left: (FRAME_WIDTH - POI_MENU_DIM)/2 + 160, height: 31, width: 150}}>
+            <TouchableOpacity onPress = {this.selectImage} style = {{justifyContent: 'center', height: 31, width: 150, position: "absolute"}}>
               <Image
                 source = {this.state.pendingPOI_image ? require('./src/components/uploadimg_pos.png') : require('./src/components/uploadimg_neg.png')} 
                 style = {{
@@ -954,18 +998,23 @@ export default class App extends Component {
               />
               <Text allowFontScaling = {false} style = {{fontWeight: 'bold', alignSelf: 'center'}}>Add Image</Text>
             </TouchableOpacity>
+          </Animated.View>
           : null}
         {this.state.displayPOImenu ? 
           this.state.pendingPOI_image ?
-            <Image //selected image
-              style = {{position: "absolute", height: 70, width: 70, resizeMode: 'contain', bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 85, left: (FRAME_WIDTH - POI_MENU_DIM)/2 + 165}}
-              source = {{uri: this.state.pendingPOI_image.uri}}
-            />
+            <Animated.View style = {{position: "absolute", height: 70, width: 70, bottom: imageSampleAnimVal, left: (FRAME_WIDTH - POI_MENU_DIM)/2 + 165}}>
+              <Image //selected image
+                style = {{position: "absolute", height: 70, width: 70, resizeMode: 'contain'}}
+                source = {{uri: this.state.pendingPOI_image.uri}}
+              />
+            </Animated.View>
           : 
-            <Image //no image
-              style = {{position: "absolute", height: 80, width: 80, resizeMode: 'contain', bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 80, left: (FRAME_WIDTH - POI_MENU_DIM) / 2 + 160}}
-              source = {require('./src/components/no-image.png')}
-            />
+            <Animated.View style = {{position: "absolute", height: 80, width: 80, bottom: imageSampleAnimVal, left: (FRAME_WIDTH - POI_MENU_DIM)/2 + 165}}>
+              <Image //no image
+                style = {{position: "absolute", height: 80, width: 80, resizeMode: 'contain'}}
+                source = {require('./src/components/no-image.png')}
+              />
+            </Animated.View>
         : null}
 
         <TouchableOpacity onPress = {this.showFilters} style = {{position: 'absolute', bottom: FRAME_HEIGHT * .04 + 20, left: (FRAME_WIDTH - 40) / 2 - FRAME_WIDTH * .25, width: 40, height: 40}}>
@@ -1076,6 +1125,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.8)', 
     justifyContent: 'center', 
     alignContent: 'center'
+  },
+
+  gestureBar: {
+    width: FRAME_WIDTH * .6, 
+    height: 3,
+    resizeMode: 'stretch', 
+    position: 'absolute', 
+    left: FRAME_WIDTH * .2, 
+    top: 7, 
+    opacity: .3
   }
 
 });

@@ -10,8 +10,10 @@
   "dependencies": {
     "@babel/core": "^7.12.10",
     "expo": "~39.0.2",
+    "expo-cli": "^4.1.6",
     "expo-clipboard": "^1.0.1",
     "expo-constants": "~9.2.0",
+    "expo-font": "~8.3.0",
     "expo-image-manipulator": "~8.3.0",
     "expo-image-picker": "~9.1.1",
     "expo-location": "~9.0.0",
@@ -31,5 +33,10 @@
     "yarnpkg": "^0.15.1"
   },
   "devDependencies": {},
-  "private": true
+  "private": true,
+  "rnpm": {
+    "assets": [
+      "src/fonts"
+    ]
+  }
 }
