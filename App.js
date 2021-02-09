@@ -22,10 +22,9 @@ const Icon = createIconSetFromFontello(fontelloConfig);
 import * as Font from 'expo-font';
 
 //settings/info
-//change radio buttons to skater icon
 //filter types
-//implement animation for POI addition menu
 //clean up code from filtering onwards
+//cache images?
 
 //add star rating or allow users to change ratings? otherwise one user sets ratings forever
 //prompt for rating when leaving area
@@ -70,6 +69,7 @@ const POI_MENU_DIM = 338;
 
 let imageButtonAnimVal = new Animated.Value(-500);
 let imageSampleAnimVal = new Animated.Value(-500);
+let filterTypesAnimVal = new Animated.Value(-500);
 
 export default class App extends Component {
   constructor(props) {
@@ -110,7 +110,7 @@ export default class App extends Component {
       filterMenu: null,
       condition_min: 0, condition_max: 10, security_min: 0, security_max: 10, 
       skillLevel_min: 0, skillLevel_max: 10, accessibility_min: 0, accessibility_max: 10,
-      rampChecked: true, railChecked: true, ledgeChecked: true, gapChecked: true
+      validTypes: {"Ramp": true, "Rail": true, "Ledge": true, "Gap": true}
     };
   }
 
@@ -735,28 +735,21 @@ export default class App extends Component {
 
   ////////////////////////////////////////////////////////////////Filtering///////////////////////////////////////////////////////////////////
 
-  changeFilteredList = (condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max) => {
+  changeFilteredList = (condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max, validTypes) => {
     console.log("updating filters");
 
-    let validTypes = [];
-    if (this.state.rampChecked) {validTypes.push('Ramp');}
-    if (this.state.railChecked) {validTypes.push('Rail');}
-    if (this.state.gapChecked) {validTypes.push('Gap');}
-    if (this.state.ledgeChecked) {validTypes.push('Ledge');}
-
-
-    this.setState({condition_min: condition_min, condition_max: condition_max, security_min: security_min, security_max: security_max, accessibility_max: accessibility_max, accessibility_min: accessibility_min, skillLevel_max: skillLevel_max, skillLevel_min: skillLevel_min});
+    this.setState({condition_min: condition_min, condition_max: condition_max, security_min: security_min, security_max: security_max, accessibility_max: accessibility_max, accessibility_min: accessibility_min, skillLevel_max: skillLevel_max, skillLevel_min: skillLevel_min, validTypes: validTypes});
     let tempArr = [];
     for (i = 0; i < this.state.markers.length; i++) {
       let currMarker = this.state.markers[i];
       if (currMarker.condition <= condition_max && currMarker.condition >= condition_min && currMarker.security <= security_max 
           && currMarker.security >= security_min && currMarker.accessibility <= accessibility_max && currMarker.accessibility >= accessibility_min 
-          && currMarker.skillLevel <= skillLevel_max && currMarker.skillLevel >= skillLevel_min && validTypes.includes(currMarker.type)) {
+          && currMarker.skillLevel <= skillLevel_max && currMarker.skillLevel >= skillLevel_min && validTypes[currMarker.type]) {
         tempArr.push(currMarker);
       }
     }
     this.setState({filteredMarkers: tempArr});
-    console.log(condition_min, condition_max, security_min, security_max, accessibility_min, accessibility_max, skillLevel_min, skillLevel_max);
+    console.log(condition_min, condition_max, security_min, security_max, accessibility_min, accessibility_max, skillLevel_min, skillLevel_max, validTypes);
   };
 
   showFilters = async () => {
@@ -769,6 +762,7 @@ export default class App extends Component {
     let accessibility_min = this.state.accessibility_min; let accessibility_max = this.state.accessibility_max;
 
     let animVal = new Animated.Value(-500);
+    filterTypesAnimVal = new Animated.Value(-500);
     this.setState({
       filterMenu: <Animated.View style = {{height: 300, width: FRAME_WIDTH, position: 'absolute', top: animVal, flexDirection: 'row', flexWrap: 'wrap'}}>
 
@@ -781,8 +775,8 @@ export default class App extends Component {
                       <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Accessibility</Text>
                       <RangeSlider min = {0} max = {10}
                         styleSize = 'small'
-                        fromValueOnChange = {value => {accessibility_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
-                        toValueOnChange = {value => {accessibility_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
+                        fromValueOnChange = {value => {accessibility_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max, this.state.validTypes);}}
+                        toValueOnChange = {value => {accessibility_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max, this.state.validTypes);}}
                         initialFromValue = {accessibility_min}
                         initialToValue = {accessibility_max}
                         
@@ -797,8 +791,8 @@ export default class App extends Component {
                       <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Skill Level</Text>
                       <RangeSlider min = {0} max = {10}
                         styleSize = 'small'
-                        fromValueOnChange = {value => {skillLevel_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
-                        toValueOnChange = {value => {skillLevel_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
+                        fromValueOnChange = {value => {skillLevel_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max, this.state.validTypes);}}
+                        toValueOnChange = {value => {skillLevel_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max, this.state.validTypes);}}
                         initialFromValue = {skillLevel_min}
                         initialToValue = {skillLevel_max}
 
@@ -813,8 +807,8 @@ export default class App extends Component {
                       <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Security</Text>
                       <RangeSlider min = {0} max = {10}
                         styleSize = 'small'
-                        fromValueOnChange = {value => {security_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
-                        toValueOnChange = {value => {security_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
+                        fromValueOnChange = {value => {security_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max, this.state.validTypes);}}
+                        toValueOnChange = {value => {security_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max, this.state.validTypes);}}
                         initialFromValue = {security_min}
                         initialToValue = {security_max}
                         
@@ -829,8 +823,8 @@ export default class App extends Component {
                       <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Condition</Text>
                       <RangeSlider min = {0} max = {10}
                         styleSize = 'small'
-                        fromValueOnChange = {value => {condition_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
-                        toValueOnChange = {value => {condition_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max);}}
+                        fromValueOnChange = {value => {condition_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max, this.state.validTypes);}}
+                        toValueOnChange = {value => {condition_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max, this.state.validTypes);}}
                         initialFromValue = {condition_min}
                         initialToValue = {condition_max}
                         
@@ -844,6 +838,7 @@ export default class App extends Component {
                   </Animated.View>
     });
     Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: 120}).start();
+    Animated.spring(filterTypesAnimVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: 350}).start();
   };
 
 
@@ -936,12 +931,12 @@ export default class App extends Component {
 
         {this.state.filterMenu}
         {this.state.filterMenu ?
-          <View style = {{width: FRAME_WIDTH, height: 50, position: 'absolute', top: 350, flexDirection: 'row'}}>
+          <Animated.View style = {{width: FRAME_WIDTH, height: 50, position: 'absolute', top: filterTypesAnimVal, flexDirection: 'row'}}>
             <CircleCheckBox
             styleCheckboxContainer = {{paddingLeft: 20}}
             allowFontScaling = {false}
-            checked = {this.state.rampChecked}
-            onToggle = {(checked) => {this.setState({rampChecked: checked});}}
+            checked = {this.state.validTypes["Ramp"]}
+            onToggle = {(checked) => {let newValid = this.state.validTypes; newValid["Ramp"] = !newValid["Ramp"]; this.changeFilteredList(this.state.condition_min, this.state.condition_max, this.state.security_min, this.state.security_max, this.state.skillLevel_min, this.state.skillLevel_max, this.state.accessibility_min, this.state.accessibility_max, newValid);}}
             label = "Ramps:"
             labelPosition={LABEL_POSITION.LEFT}
             styleLabel = {{fontWeight: 'bold'}}
@@ -951,8 +946,8 @@ export default class App extends Component {
             <CircleCheckBox
             styleCheckboxContainer = {{paddingLeft: 10}}
             allowFontScaling = {false}
-            checked = {this.state.railChecked}
-            onToggle = {(checked) => {this.setState({railChecked: checked});}}
+            checked = {this.state.validTypes["Rail"]}
+            onToggle = {(checked) => {let newValid = this.state.validTypes; newValid["Rail"] = !newValid["Rail"]; this.changeFilteredList(this.state.condition_min, this.state.condition_max, this.state.security_min, this.state.security_max, this.state.skillLevel_min, this.state.skillLevel_max, this.state.accessibility_min, this.state.accessibility_max, newValid);}}
             label = "Rails:"
             labelPosition={LABEL_POSITION.LEFT}
             styleLabel = {{fontWeight: 'bold'}}
@@ -962,8 +957,8 @@ export default class App extends Component {
             <CircleCheckBox
             styleCheckboxContainer = {{paddingLeft: 10}}
             allowFontScaling = {false}
-            checked = {this.state.gapChecked}
-            onToggle = {(checked) => {this.setState({gapChecked: checked});}}
+            checked = {this.state.validTypes["Gap"]}
+            onToggle = {(checked) => {let newValid = this.state.validTypes; newValid["Gap"] = !newValid["Gap"]; this.changeFilteredList(this.state.condition_min, this.state.condition_max, this.state.security_min, this.state.security_max, this.state.skillLevel_min, this.state.skillLevel_max, this.state.accessibility_min, this.state.accessibility_max, newValid);}}
             label = "Gaps:"
             labelPosition={LABEL_POSITION.LEFT}
             styleLabel = {{fontWeight: 'bold'}}
@@ -973,15 +968,15 @@ export default class App extends Component {
             <CircleCheckBox
             styleCheckboxContainer = {{paddingLeft: 10}}
             allowFontScaling = {false}
-            checked = {this.state.ledgeChecked}
-            onToggle = {(checked) => {this.setState({ledgeChecked: checked});}}
+            checked = {this.state.validTypes["Ledge"]}
+            onToggle = {(checked) => {let newValid = this.state.validTypes; newValid["Ledge"] = !newValid["Ledge"]; this.changeFilteredList(this.state.condition_min, this.state.condition_max, this.state.security_min, this.state.security_max, this.state.skillLevel_min, this.state.skillLevel_max, this.state.accessibility_min, this.state.accessibility_max, newValid);}}
             label = "Ledges:"
             labelPosition={LABEL_POSITION.LEFT}
             styleLabel = {{fontWeight: 'bold'}}
             outerColor = {POS_COLOR}
             innerColor = {POS_COLOR}
             />
-          </View>  
+          </Animated.View>  
         : null}
         
 
