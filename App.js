@@ -1,12 +1,11 @@
-import React, { Component } from "react"; //importing necessary libraries
-import { StyleSheet, View, Image, TouchableOpacity, Text, Alert, StatusBar, Platform, FlatList, Animated, TextInput } from "react-native";
-import { Dimensions } from 'react-native';
+import React, { Component } from "react";
+import { View, Image, TouchableOpacity, Text, Alert, StatusBar, Platform, FlatList, Animated, TextInput } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import * as Permissions from "expo-permissions";
 import { text } from 'react-native-communications';
 import { db } from './src/config';
-import RangeSlider, { Slider } from 'react-native-range-slider-expo';
+import RangeSlider from 'react-native-range-slider-expo';
 import RadioButtonRN from 'radio-buttons-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
@@ -20,6 +19,15 @@ import { createIconSetFromFontello } from 'react-native-vector-icons';
 import fontelloConfig from './src/fonts/config.json';
 const Icon = createIconSetFromFontello(fontelloConfig);
 import * as Font from 'expo-font';
+import { darkMapStyle, POS_COLOR, NEG_COLOR, NEUTRAL_COLOR, FRAME_WIDTH, FRAME_HEIGHT, PLUS_ICON_DIM, DM_ICON_DIM, POI_MENU_DIM } from "./src/constants";
+import { createSlider, createRatingBar, createCurrentPOIAction } from "./src/componentCreation";
+import { styles } from './src/styles.js'
+
+//images to rounded divs
+//file organization/separation
+//enforce types
+//eslint
+//clean node_modules
 
 //settings/info
 //filter types
@@ -36,36 +44,6 @@ import * as Font from 'expo-font';
 //make sure permissions dont break the app
 //test different ios versions
 //shake to refresh
-
-const darkMapStyle = [ //generate dark map style (stored locally)
-  {"elementType": "geometry", "stylers": [{"color": "#242f3e"}]},
-  {"elementType": "labels.text.fill", "stylers": [{"color": "#746855"}]},
-  {"elementType": "labels.text.stroke", "stylers": [{"color": "#242f3e"}]},
-  {"featureType": "administrative.locality", "elementType": "labels.text.fill", "stylers": [{"color": "#d59563"}]},
-  {"featureType": "poi", "elementType": "labels.text.fill", "stylers": [{"color": "#d59563"}]},
-  {"featureType": "poi.park", "elementType": "geometry", "stylers": [{"color": "#263c3f"}]},
-  {"featureType": "poi.park", "elementType": "labels.text.fill", "stylers": [{"color": "#6b9a76"}]},
-  {"featureType": "road", "elementType": "geometry", "stylers": [{"color": "#38414e"}]},
-  {"featureType": "road", "elementType": "geometry.stroke", "stylers": [{"color": "#212a37"}]},
-  {"featureType": "road", "elementType": "labels.text.fill", "stylers": [{"color": "#9ca5b3"}]},
-  {"featureType": "road.highway", "elementType": "geometry", "stylers": [{"color": "#746855"}]},
-  {"featureType": "road.highway", "elementType": "geometry.stroke", "stylers": [{"color": "#1f2835"}]},
-  {"featureType": "road.highway", "elementType": "labels.text.fill", "stylers": [{"color": "#f3d19c"}]},
-  {"featureType": "transit", "elementType": "geometry", "stylers": [{"color": "#2f3948"}]},
-  {"featureType": "transit.station", "elementType": "labels.text.fill", "stylers": [{"color": "#d59563"}]},
-  {"featureType": "water", "elementType": "geometry", "stylers": [{"color": "#17263c"}]},
-  {"featureType": "water", "elementType": "labels.text.fill", "stylers": [{"color": "#515c6d"}]},
-  {"featureType": "water", "elementType": "labels.text.stroke", "stylers": [{"color": "#17263c"}]}
-];
-
-const POS_COLOR = '#6cccdc'; const NEG_COLOR = '#dc6c6c'; const NEUTRAL_COLOR = '#041c4b';
-
-//dimension reading and proportion fallback determinations
-const FRAME_WIDTH = Dimensions.get('window').width;
-const FRAME_HEIGHT =  Dimensions.get('window').height;
-const PLUS_ICON_DIM = FRAME_WIDTH * .25;
-const DM_ICON_DIM = FRAME_WIDTH * .15;
-const POI_MENU_DIM = 338;
 
 let imageButtonAnimVal = new Animated.Value(-500);
 let imageSampleAnimVal = new Animated.Value(-500);
@@ -177,115 +155,42 @@ export default class App extends Component {
 
  ///////////////////////////////////////////////////POI Addition, Bug Reports, & Mode Switching/////////////////////////////////////////////////////////////////
 
-  initiate_addPOI = () => { //when "add POI" button is pressed, triggers this function
-    this.nullifyCurrentPOI(); //remove "current POI" menu/display
+  initiate_addPOI = () => {
+    this.nullifyCurrentPOI();
     this.setState({filterMenu: null, pendingPOI_image: null, pendingPOI_type: null}); //remove filter menu, reset pending image and type data
-    this.setState({displayPOImenu: !this.state.displayPOImenu}); //flip POI menu display state
-    console.log("set POI addition menu:", this.state.displayPOImenu ? "NOT visible" : "visible");
+    this.setState({displayPOImenu: !this.state.displayPOImenu});
     
     if (this.state.displayPOImenu) {this.setState({addPOImenu: null}); return;} //if POI addition menu is already visible, nullify it
     let animVal = new Animated.Value(-500);
     imageButtonAnimVal = new Animated.Value(-500);
     imageSampleAnimVal = new Animated.Value(-500);
     this.setState({
-      addPOImenu: <Animated.View //wrapper view for POI menu content
-                    style = {{
-                      position: 'absolute',
-                      bottom: animVal,
-                      left: (FRAME_WIDTH - POI_MENU_DIM)/2,
-                      width: POI_MENU_DIM,
-                      height: 452,
-                      flexDirection: 'row', 
-                      flexWrap: 'wrap'
-                    }}
-                  >
+      addPOImenu: <Animated.View style = {[styles.POIAdditionWrapper, {bottom: animVal}]}>
+                    <Image style = {styles.POIAdditionBG} source = {require('./src/components/POI_menu.png')}/>
 
-                    <Image //POI menu bubble image
-                      style = {{
-                        position: 'absolute',
-                        width: POI_MENU_DIM,
-                        height: 452,
-                        resizeMode: 'stretch',
-                        bottom: 10
-                      }}
-                      source = {require('./src/components/POI_menu.png')}
-                    />
-
-                    <View style = {{paddingLeft: POI_MENU_DIM * .05, width: POI_MENU_DIM * .5}} /*accessibility slider wrapper*/>
-                      <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold'}}>Accessibility</Text>
-
-                      <Slider min = {0} max = {10} step = {1} //accessibility slider
-                        valueOnChange = {value => {this.setState({pendingPOI_accessibility: value});}}
-                        initialValue = {5}
-                        knobColor = {NEUTRAL_COLOR}
-                        valueLabelsBackgroundColor = {NEUTRAL_COLOR}
-                        inRangeBarColor = {NEG_COLOR}
-                        outOfRangeBarColor = {POS_COLOR}
-                      />
-                    </View>
-
-                    <View style = {{paddingLeft: POI_MENU_DIM * .05, width: POI_MENU_DIM * .5}} /*skillLevel slider wrapper*/>
-                      <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold'}}>Skill Level</Text>
-
-                      <Slider min = {0} max = {10} step = {1} //skillLevel slider
-                        valueOnChange = {value => {this.setState({pendingPOI_skillLevel: value});}}
-                        initialValue = {5}
-                        knobColor = {NEUTRAL_COLOR}
-                        valueLabelsBackgroundColor = {NEUTRAL_COLOR}
-                        inRangeBarColor = {NEG_COLOR}
-                        outOfRangeBarColor = {POS_COLOR}
-                      />
-                    </View>
-
-                    <View style = {{paddingLeft: POI_MENU_DIM * .05, width: POI_MENU_DIM * .5}} /*security slider wrapper*/>
-                      <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold'}}>Security</Text>
-
-                      <Slider min = {0} max = {10} step = {1} //security slider
-                        valueOnChange = {value => {this.setState({pendingPOI_security: value});}}
-                        initialValue = {5}
-                        knobColor = {NEUTRAL_COLOR}
-                        valueLabelsBackgroundColor = {NEUTRAL_COLOR}
-                        inRangeBarColor = {NEG_COLOR}
-                        outOfRangeBarColor = {POS_COLOR}
-                      />
-                    </View>
-
-                    <View style = {{paddingLeft: POI_MENU_DIM * .05, width: POI_MENU_DIM * .5}} /*condition slider wrapper*/>
-                      <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold'}}>Condition</Text>
-
-                      <Slider min = {0} max = {10} step = {1} //condition slider
-                        valueOnChange = {value => {this.setState({pendingPOI_condition: value});}}
-                        initialValue = {5}
-                        knobColor = {NEUTRAL_COLOR}
-                        valueLabelsBackgroundColor = {NEUTRAL_COLOR}
-                        inRangeBarColor = {NEG_COLOR}
-                        outOfRangeBarColor = {POS_COLOR}
-                      />
-                    </View>
+                    {createSlider(value => {this.setState({pendingPOI_accessibility: value});}, 5, 'Accessibility')}
+                    {createSlider(value => {this.setState({pendingPOI_skillLevel: value});}, 5, 'Skill Level')}
+                    {createSlider(value => {this.setState({pendingPOI_security: value});}, 5, 'Security')}
+                    {createSlider(value => {this.setState({pendingPOI_condition: value});}, 5, 'Condition')}
 
                     <View style = {{width: POI_MENU_DIM, backgroundColor: NEUTRAL_COLOR, height: 1}}/*divider line*//>
                     
-                    <RadioButtonRN //radio button array
+                    <RadioButtonRN
                       style = {{paddingLeft: POI_MENU_DIM * .15}}
                       data = {[{label: 'Ramp'}, {label: 'Rail'}, {label: 'Ledge'}, {label: 'Gap'}]}
                       box = {false}
-                      icon = {
-                        <Icon //from react-native-vector-icons library
-                          name = "boy-on-skateboard-silhouette"
-                          size = {25}
-                          color = {POS_COLOR}
-                        />
-                      }
-                      selectedBtn = {(e) => {this.state.pendingPOI_type = e.label}} //set POI type state variable on radio button select
+                      icon = {<Icon name = "boy-on-skateboard-silhouette" size = {25} color = {POS_COLOR}/>}
+                      selectedBtn = {(e) => {this.state.pendingPOI_type = e.label}}
                       animationTypes = {['pulse', 'rotate']}
                     /> 
+
                     <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold', lineHeight: 38, paddingLeft: POI_MENU_DIM * .035}}>
                       Ramp{'\n'}Rail{'\n'}Ledge{'\n'}Gap{'\n'}
                     </Text>
 
                     <TouchableOpacity onPress = {this.pushPOIdata} style = {{position: 'absolute', top: 300, right: 20, width: POI_MENU_DIM * .2, height: POI_MENU_DIM * .2}}>  
                       <Image
-                        source = {require('./src/components/submitPOI.png')} //submit button for POI info
+                        source = {require('./src/components/submitPOI.png')}
                         style = {{position: 'absolute', width: POI_MENU_DIM * .2, height: POI_MENU_DIM * .2, resizeMode: 'contain'}}
                       />
                     </TouchableOpacity>
@@ -296,18 +201,12 @@ export default class App extends Component {
     Animated.spring(imageSampleAnimVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 85}).start();
   };
 
-  darkModeSwitch = () => { //enable dark mode if disabled, and vice versa, called when mode button pressed
-    this.setState({darkModeEnabled: !this.state.darkModeEnabled});
-    console.log("set mode to", this.state.darkModeEnabled ? "LIGHT" : "DARK");
-  };
+  darkModeSwitch = () => {this.setState({darkModeEnabled: !this.state.darkModeEnabled});}
 
-  initBugReport = () => {
-    console.log("initiating bug report");
-    text("17085574833", "Bug Report or Suggestion:\n"); //prompt with text window/prefilled message
-  };
+  initBugReport = () => {text("17085574833", "Bug Report or Suggestion:\n");}
 
-  pushPOIdata = async () => { //push pending POI data to the RTDB
-    if (this.state.pendingPOI_type && this.state.regionState && this.state.pendingPOI_image) { //verify definition of POI props
+  pushPOIdata = async () => {
+    if (this.state.pendingPOI_type && this.state.regionState && this.state.pendingPOI_image) {
       console.log("pushing to RTDB");
       db.ref('/poi').push({ //push POI data to directory
         skillLevel: this.state.pendingPOI_skillLevel,
@@ -318,7 +217,7 @@ export default class App extends Component {
         regionState: {latitude: this.state.regionState.latitude, longitude: this.state.regionState.longitude},
         images: [{key: "0", data: await this.uriToBase64(this.state.pendingPOI_image.uri), type: this.state.pendingPOI_image.type}],//await promise response from helper func, then push base64 return value
       });
-      this.setState({displayPOImenu: false, addPOImenu: null}); //withdraw POI addition menu
+      this.setState({displayPOImenu: false, addPOImenu: null});
       Alert.alert("Your skate spot has been added to the database!😎 \n\n(This is monitored and spam entries will be deleted)");
     } else {
       Alert.alert("Please fill out all fields. Remember to select a type and image!😄");
@@ -331,7 +230,7 @@ export default class App extends Component {
   };
 
   selectImage = async () => { //triggered by select image button on POI addition menu
-    const {status} = await Permissions.askAsync(Permissions.CAMERA); //prompt for cam perms
+    const {status} = await Permissions.askAsync(Permissions.CAMERA);
     console.log("cam perms", status);
     if (status !== "granted") { //if perms denied
       Alert.alert("You need to allow camera permissions to take pictures of the cool skate spots you find!\n\nTo change this, visit the Settings app, find this app towards the bottom, and enable."); return;
@@ -352,11 +251,11 @@ export default class App extends Component {
 
   //////////////////////////////////////////////////////////////POI Viewing & Image/Comment Addition/////////////////////////////////////////////////////////////////////////////
 
-  nullifyCurrentPOI = () => {this.setState({currentPOI: null, currentPOI_images: null, currentPOI_comments: null});}; //helper functions to get rid of unneeded menu renders
+  nullifyCurrentPOI = () => {this.setState({currentPOI: null, currentPOI_images: null, currentPOI_comments: null});} //helper functions to get rid of unneeded menu renders
 
-  nullifyImageMenu = () => {this.setState({currentPOI_images: null});};
+  nullifyImageMenu = () => {this.setState({currentPOI_images: null});}
 
-  nullifyCommentMenu = () => {this.setState({currentPOI_comments: null});};
+  nullifyCommentMenu = () => {this.setState({currentPOI_comments: null});}
 
   POIactivationHandler = poi_obj => { //handles activation of a given POI
     console.log('POI activated; id =>', poi_obj.id);
@@ -366,133 +265,33 @@ export default class App extends Component {
     let accessibilityIndicatorLM = new Animated.Value(0); let skillLevelIndicatorLM = new Animated.Value(0);
     let securityIndicatorLM = new Animated.Value(0); let conditionIndicatorLM = new Animated.Value(0);
     this.setState({
-      currentPOI: <FlingGestureHandler //handles swipe-down
+      currentPOI: <FlingGestureHandler
                     direction = {Directions.DOWN}
                     onHandlerStateChange={({ nativeEvent }) => {
                       if (nativeEvent.state === State.ACTIVE) {
                         Animated.timing(viewAnim, {useNativeDriver: false, toValue: -500}).start(); //animates swipe-down
                           setTimeout(() => {
-                            this.setState({currentPOI: null}); //after 200ms delay, nullify main POI panel
+                            this.nullifyCurrentPOI();
                           }, 200);
                       }
                   }}>
-                    <Animated.View style = {{position: 'absolute', bottom: viewAnim, height: 200, width: FRAME_WIDTH, flexDirection: 'row'}}>
-                      <Image //renders back image for POI display menu
-                        source = {require('./src/components/selectedDisplay.png')} 
-                        style = {styles.POIdisplayBG}
-                      />
+                    <Animated.View style = {[styles.currentPOIWrapper, {bottom: viewAnim}]}>
+                      <Image source = {require('./src/components/gestureBar.png')} style = {styles.gestureBar}/>
 
-                      <Image //renders gesture indicator bar
-                        source = {require('./src/components/gestureBar.png')}
-                        style = {styles.gestureBar}
-                      />
-
-                      <View>
-                        <View style = {{flexDirection: 'row', paddingTop: 40, paddingLeft: 10}}>
-                          <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Accessibility:</Text>
-                          <View style = {{paddingLeft: 10}}>
-                            <Image
-                              source = {require('./src/components/rating_displayBar.png')} 
-                              style = {styles.displayBar}
-                            />
-                            <Animated.Image
-                              source = {require('./src/components/POIdisplay_indicator.png')} 
-                              style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["accessibility"] === 0 ? 1 : accessibilityIndicatorLM}}
-                            />
-                          </View>
-                          <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 5}}> ({poi_obj["accessibility"]})</Text>
-                        </View>
-
-                        <View style = {{flexDirection: 'row', paddingLeft: 29}}>
-                          <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Skill Level:</Text>
-                          <View style = {{paddingLeft: 10,}}>
-                            <Image
-                              source = {require('./src/components/rating_displayBar.png')} 
-                              style = {styles.displayBar}
-                            />
-                            <Animated.Image
-                              source = {require('./src/components/POIdisplay_indicator.png')} 
-                              style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["skillLevel"] === 0 ? 1 : skillLevelIndicatorLM}}
-                            />
-                          </View>
-                          <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 5}}> ({poi_obj["skillLevel"]})</Text>
-                        </View>
-
-                        <View style = {{flexDirection: 'row', paddingLeft: 30}}>
-                          <Text  allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Condition:</Text>
-                          <View style = {{paddingLeft: 10}}>
-                            <Image
-                              source = {require('./src/components/rating_displayBar.png')} 
-                              style = {styles.displayBar}
-                            />
-                            <Animated.Image
-                              source = {require('./src/components/POIdisplay_indicator.png')} 
-                              style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["condition"] === 0 ? 1 : conditionIndicatorLM}}
-                            />
-                          </View>
-                          <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 5}}> ({poi_obj["condition"]})</Text>
-                        </View>
-
-                        <View style = {{flexDirection: 'row', paddingLeft: 39}}>
-                          <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Security:</Text>
-                          <View style = {{paddingLeft: 10,}}>
-                            <Image
-                              source = {require('./src/components/rating_displayBar.png')} 
-                              style = {styles.displayBar}
-                            />
-                            <Animated.Image
-                              source = {require('./src/components/POIdisplay_indicator.png')} 
-                              style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: poi_obj["security"] === 0 ? 1 : securityIndicatorLM}}
-                            />
-                          </View>
-                          <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 8}}>({poi_obj["security"]})</Text>
-                        </View>
-                        <Text allowFontScaling = {false} style = {{fontWeight: 'bold', marginLeft: 63}}>Type:   {poi_obj.type}</Text>
+                      <View style={{paddingTop: 40}}>
+                        {createRatingBar(poi_obj, 'accessibility', 'Accessibility:', accessibilityIndicatorLM, 10)}
+                        {createRatingBar(poi_obj, 'skillLevel', 'Skill Level:', skillLevelIndicatorLM, 29)}
+                        {createRatingBar(poi_obj, 'condition', 'Condition:', conditionIndicatorLM, 30)}
+                        {createRatingBar(poi_obj, 'security', 'Security:', securityIndicatorLM, 39)}
                       </View>
 
-                      <View style = {{marginTop: 45, marginLeft: 20}}>
-                        <TouchableOpacity onPress = {() => this.enableCurrentPOI_images(poi_obj)}>
-                          <Image
-                            source = {require('./src/components/viewPhotos.png')}
-                            style = {{resizeMode: 'contain', height: 50, width: 50}}
-                          />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress = {() => this.addPOIimage(poi_obj)}>
-                          <Image
-                            source = {require('./src/components/addPhoto.png')}
-                            style = {{resizeMode: 'contain', height: 40, width: 40, marginLeft: 5}}
-                          />
-                        </TouchableOpacity>
-                      </View>
-
-                      <View style = {{marginTop: 45, marginLeft: 5}}>
-                        <TouchableOpacity onPress = {() => this.enableCurrentPOI_comments(poi_obj)}>
-                          <Image
-                            source = {require('./src/components/viewComments.png')}
-                            style = {{resizeMode: 'contain', height: 50, width: 50}}
-                          />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress = {() => this.addPOIcomment(poi_obj)}>
-                          <Image
-                            source = {require('./src/components/addComment.png')}
-                            style = {{resizeMode: 'contain', height: 40, width: 40, marginLeft: 5}}
-                          />
-                        </TouchableOpacity>
-                      </View>
-
-                      <View style = {{position: 'absolute', top: 135, right: 45, flexDirection: 'row'}}>
-                        <TouchableOpacity onPress = {() => {this.initiateNavigation(poi_obj)}}>
-                          <Image
-                            source = {require('./src/components/navigationPin.png')}
-                            style = {{resizeMode: 'contain', height: 45, width: 45}}
-                          />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress = {() => {this.sharePOIurl(poi_obj)}}>
-                        <Image
-                            source = {require('./src/components/sharePOI.png')}
-                            style = {{resizeMode: 'contain', height: 50, width: 50, marginLeft: 10}}
-                          />
-                        </TouchableOpacity>
+                      <View style={{width: 150, height: 150, paddingTop: 50, paddingLeft: 10, flexWrap: 'wrap'}}>       
+                          {createCurrentPOIAction(() => this.enableCurrentPOI_images(poi_obj), 50, 0, require('./src/components/viewPhotos.png'))}
+                          {createCurrentPOIAction(() => this.addPOIimage(poi_obj), 40, 5, require('./src/components/addPhoto.png'))}
+                          {createCurrentPOIAction(() => this.enableCurrentPOI_comments(poi_obj), 50, 0, require('./src/components/viewComments.png'))}
+                          {createCurrentPOIAction(() => this.addPOIcomment(poi_obj), 40, 5, require('./src/components/addComment.png'))}
+                          {createCurrentPOIAction(() => this.initiateNavigation(poi_obj), 50, 0, require('./src/components/navigationPin.png'))}
+                          {createCurrentPOIAction(() => this.sharePOIurl(poi_obj), 50, 0, require('./src/components/sharePOI.png'))}
                       </View>
 
                       <TouchableOpacity onPress = {() => {this.nullifyCurrentPOI()}} style = {styles.POIexit_TO}>
@@ -507,7 +306,7 @@ export default class App extends Component {
     });
     Animated.spring(viewAnim, {useNativeDriver: false, friction: 5, tension: 4, toValue: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 10}).start();
     setTimeout(() => {
-      Animated.spring(accessibilityIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["accessibility"]}).start(); //animate indicators
+      Animated.spring(accessibilityIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["accessibility"]}).start();
       Animated.spring(conditionIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["condition"]}).start();
       Animated.spring(skillLevelIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["skillLevel"]}).start();
       Animated.spring(securityIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj["security"]}).start();
@@ -1058,78 +857,3 @@ export default class App extends Component {
     );
   }
 }
-
-const styles = StyleSheet.create({
-  
-  container: {
-    flex: 1,
-    backgroundColor: "#fff"
-  },
-
-  displayBar: {
-    resizeMode: 'contain', 
-    width: 100, 
-    flexBasis: 20
-  },
-
-  POIexit_generic: {
-    resizeMode: 'contain', 
-    height: FRAME_WIDTH * .07, 
-    width: FRAME_WIDTH * .07
-  },
-
-  POIdisplayBG: {
-    resizeMode: 'contain', 
-    position: 'absolute',  
-    height: 200, 
-    width: FRAME_WIDTH
-  },
-
-  POIexit_TO: {
-    position: 'absolute', 
-    top: 20,
-    right: 20, 
-    width: FRAME_WIDTH * .07, 
-    zIndex: 5
-  },
-
-  POIdisplayAdditionalMenu_ContentWrapper: {
-    position: 'absolute', 
-    width: FRAME_WIDTH, 
-    height: 200, 
-    bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 210, 
-    justifyContent: 'center', 
-    alignContent: 'center'
-  },
-
-  FlatListPerImg: {
-    zIndex: 5, 
-    height: 140, 
-    width: 140, 
-    resizeMode: 'contain', 
-    alignSelf: 'center', 
-    marginRight: 15, 
-    marginTop: 30
-  },
-
-  fullScreenImgView: {
-    zIndex: 8, 
-    position: 'absolute', 
-    width: FRAME_WIDTH, 
-    height: FRAME_HEIGHT, 
-    backgroundColor: 'rgba(255, 255, 255, 0.8)', 
-    justifyContent: 'center', 
-    alignContent: 'center'
-  },
-
-  gestureBar: {
-    width: FRAME_WIDTH * .6, 
-    height: 3,
-    resizeMode: 'stretch', 
-    position: 'absolute', 
-    left: FRAME_WIDTH * .2, 
-    top: 7, 
-    opacity: .3
-  }
-
-});
