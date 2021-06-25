@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { FRAME_HEIGHT, FRAME_WIDTH, POI_MENU_DIM, PLUS_ICON_DIM } from './constants';
+import { FRAME_HEIGHT, FRAME_WIDTH, POI_MENU_DIM, PLUS_ICON_DIM, DM_ICON_DIM } from './constants';
 
 export const styles = StyleSheet.create({
 
@@ -41,7 +41,9 @@ export const styles = StyleSheet.create({
         height: 200, 
         bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 210, 
         justifyContent: 'center', 
-        alignContent: 'center'
+        alignContent: 'center',
+        backgroundColor: 'white',
+        borderRadius: 40
     },
 
     FlatListPerImg: {
@@ -99,5 +101,43 @@ export const styles = StyleSheet.create({
         flexDirection: 'row',
         backgroundColor: 'white',
         borderRadius: 40
+    },
+
+    POIimagesWrapper: {
+        position: 'absolute',
+        width: FRAME_WIDTH,
+        height: FRAME_HEIGHT,
+        zIndex: 0
+    },
+
+    POIcommentsWrapper: {
+        position: 'absolute',
+        width: FRAME_WIDTH,
+        height: FRAME_HEIGHT
+    },
+
+    bugReportImg: {
+        height: FRAME_WIDTH * .1,
+        width: FRAME_WIDTH * .1,
+        resizeMode: 'contain',
+        paddingRight: FRAME_HEIGHT <= 667 ? 5 : FRAME_WIDTH * .3
+    },
+
+    addPOIplus: {
+        position: 'absolute',
+        bottom: .04  * FRAME_HEIGHT,
+        left: (FRAME_WIDTH - PLUS_ICON_DIM) / 2,
+        height: PLUS_ICON_DIM,
+        width: PLUS_ICON_DIM,
+        resizeMode: 'contain'
+    },
+
+    DMswitch: {
+        position: 'absolute',
+        bottom: .04  * FRAME_HEIGHT,
+        left: (FRAME_WIDTH - DM_ICON_DIM) / 2 + .25 * FRAME_WIDTH,
+        height: DM_ICON_DIM,
+        width: DM_ICON_DIM,
+        resizeMode: 'contain'
     }
 });
