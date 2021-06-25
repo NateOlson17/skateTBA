@@ -95,7 +95,6 @@ export const styles = StyleSheet.create({
 
     currentPOIWrapper: {
         position: 'absolute',
-        borderRadius: 4,
         height: 200,
         width: FRAME_WIDTH,
         flexDirection: 'row',
@@ -139,5 +138,36 @@ export const styles = StyleSheet.create({
         height: DM_ICON_DIM,
         width: DM_ICON_DIM,
         resizeMode: 'contain'
+    },
+
+    filterMenuAnimWrap: {
+        height: 300, 
+        backgroundColor: 'white', 
+        borderRadius: 40, 
+        width: FRAME_WIDTH, 
+        position: 'absolute', 
+        flexDirection: 'row', 
+        flexWrap: 'wrap' 
+    },
+
+    rangeSliderWrap: {
+        width: FRAME_WIDTH / 2,
+        alignItems: 'center',
+        marginTop: 10
+    },
+
+    submitPOIbutton: {
+        position: 'absolute', 
+        top: 300, 
+        right: 20, 
+        width: POI_MENU_DIM * .2, 
+        height: POI_MENU_DIM * .2
+    },
+
+    commentActionButtons: {
+        position: 'absolute', 
+        height: FRAME_WIDTH * .07, 
+        width: FRAME_WIDTH * .07, 
+        top: 60
     }
 });

@@ -4,12 +4,10 @@ import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as Permissions from 'expo-permissions';
 import { text } from 'react-native-communications';
-import RangeSlider from 'react-native-range-slider-expo';
 import RadioButtonRN from 'radio-buttons-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
 import * as ImageManipulator from 'expo-image-manipulator';
-import CircleCheckBox, { LABEL_POSITION } from 'react-native-circle-checkbox';
 import { showLocation } from 'react-native-map-link';
 import { FlingGestureHandler, State, Directions } from 'react-native-gesture-handler';
 import Clipboard from 'expo-clipboard';
@@ -18,14 +16,15 @@ import * as Font from 'expo-font';
 
 import fontelloConfig from './src/fonts/config.json';
 import { db } from './src/config';
-import { darkMapStyle, POS_COLOR, NEG_COLOR, NEUTRAL_COLOR, FRAME_WIDTH, FRAME_HEIGHT, PLUS_ICON_DIM, DM_ICON_DIM, POI_MENU_DIM } from './src/constants';
-import { createSlider, createRatingBar, createCurrentPOIAction } from './src/componentCreation';
+import { darkMapStyle, POS_COLOR, NEG_COLOR, NEUTRAL_COLOR, FRAME_WIDTH, FRAME_HEIGHT, PLUS_ICON_DIM, POI_MENU_DIM } from './src/constants';
+import { createSlider, createRatingBar, createCurrentPOIAction, createRangeSlider, createCheckbox } from './src/componentCreation';
 import { styles } from './src/styles';
 
-//enforce types
-//eslint
-//audit packages
-//clean up filtering code
+
+//revisit comments
+//consistent style naming
+//add type to current POI display
+//line up bug report button
 
 //settings/info
 //cache images?
@@ -81,8 +80,10 @@ export default class App extends Component {
 
       //filter menu display
       filterMenu: null,
-      condition_min: 0, condition_max: 10, security_min: 0, security_max: 10, 
-      skillLevel_min: 0, skillLevel_max: 10, accessibility_min: 0, accessibility_max: 10,
+      filters: {
+        condition_min: 0, condition_max: 10, security_min: 0, security_max: 10, 
+        skillLevel_min: 0, skillLevel_max: 10, accessibility_min: 0, accessibility_max: 10
+      },
       validTypes: { Ramp: true, Rail: true, Ledge: true, Gap: true }
     };
   }
@@ -115,23 +116,23 @@ export default class App extends Component {
     );
   };
 
-  componentDidMount = async () => { //when main component is mounted
+  componentDidMount = async () => {
     console.log('FW x FH =>', FRAME_WIDTH, FRAME_HEIGHT); //display frame dimensions in console (UIkit sizes, not true pixel)
-    this.setState({didMount: true}); //update state var to indicate mount
+    this.setState({didMount: true});
     
-    db.ref('/poi').on('value', (snapshot) => { //pull snapshot from RTDB
-      let markersTemp = snapshot.val(); //capture snapshot values
+    db.ref('/poi').on('value', (snapshot) => {
+      let markersTemp = snapshot.val();
       markersTemp = Object.keys(markersTemp).map((key) => [String(key), markersTemp[key]]); //map object string identifiers assigned by Firebase to object info
       this.setState({markers: []});
       for (i = 0; i < markersTemp.length; i++) { //iterate through the remapped snapshot
         markersTemp[i][1].id = markersTemp[i][0]; //use FB-assigned string identifiers as object properties (id)
         this.state.markers.push(markersTemp[i][1]); //push object from remap to markers state var
       }
-      this.setState({filteredMarkers: this.state.markers}) //update filtered list to match full marker list
+      this.setState({filteredMarkers: this.state.markers})
     });
 
     const {status} = await Permissions.askAsync(Permissions.LOCATION);
-    if (status === 'granted') { //verify user response, then begin asynchronous tracking
+    if (status === 'granted') {
       this._getLocationAsync();
     } else {
       Alert.alert('You need to allow location permissions for the map to function properly!\n\nTo change this, visit the Settings app, find this app towards the bottom, and enable.');
@@ -149,10 +150,10 @@ export default class App extends Component {
   initiate_addPOI = () => {
     this.nullifyCurrentPOI();
     this.nullifyFilterMenu();
-    this.setState({pendingPOI_image: null, pendingPOI_type: null}); //reset pending image and type data
+    this.setState({pendingPOI_image: null, pendingPOI_type: null});
     this.setState({displayPOImenu: !this.state.displayPOImenu});
     
-    if (this.state.displayPOImenu) {this.setState({addPOImenu: null}); return;} //if POI addition menu is already visible, nullify it
+    if (this.state.displayPOImenu) {this.setState({addPOImenu: null}); return;}
     let animVal = new Animated.Value(-500);
     imageButtonAnimVal = new Animated.Value(-500);
     imageSampleAnimVal = new Animated.Value(-500);
@@ -160,10 +161,10 @@ export default class App extends Component {
       addPOImenu: <Animated.View style = {[styles.POIAdditionWrapper, {bottom: animVal}]}>
                     <Image style = {styles.POIAdditionBG} source = {require('./src/components/POI_menu.png')}/>
 
-                    {createSlider(value => {this.setState({pendingPOI_accessibility: value});}, 5, 'Accessibility')}
-                    {createSlider(value => {this.setState({pendingPOI_skillLevel: value});}, 5, 'Skill Level')}
-                    {createSlider(value => {this.setState({pendingPOI_security: value});}, 5, 'Security')}
-                    {createSlider(value => {this.setState({pendingPOI_condition: value});}, 5, 'Condition')}
+                    {createSlider(value => {this.setState({pendingPOI_accessibility: value});}, 'Accessibility')}
+                    {createSlider(value => {this.setState({pendingPOI_skillLevel: value});}, 'Skill Level')}
+                    {createSlider(value => {this.setState({pendingPOI_security: value});}, 'Security')}
+                    {createSlider(value => {this.setState({pendingPOI_condition: value});}, 'Condition')}
 
                     <View style = {{width: POI_MENU_DIM, backgroundColor: NEUTRAL_COLOR, height: 1}}/>
                     
@@ -180,7 +181,7 @@ export default class App extends Component {
                       Ramp{'\n'}Rail{'\n'}Ledge{'\n'}Gap{'\n'}
                     </Text>
 
-                    <TouchableOpacity onPress = {this.pushPOIdata} style = {{position: 'absolute', top: 300, right: 20, width: POI_MENU_DIM * .2, height: POI_MENU_DIM * .2}}>  
+                    <TouchableOpacity onPress = {this.pushPOIdata} style = {styles.submitPOIbutton}>  
                       <Image
                         source = {require('./src/components/submitPOI.png')}
                         style = {{position: 'absolute', width: POI_MENU_DIM * .2, height: POI_MENU_DIM * .2, resizeMode: 'contain'}}
@@ -216,7 +217,7 @@ export default class App extends Component {
     }
   };
 
-  uriToBase64 = async uripath => { //uri to base64 image data conversion helper func
+  uriToBase64 = async uripath => {
     result = await ImageManipulator.manipulateAsync(uripath, [], {base64: true, compress: .4, format: ImageManipulator.SaveFormat.JPEG});
     return result.base64;
   };
@@ -355,22 +356,22 @@ export default class App extends Component {
 
   addPOIimage = async poi_obj => {
     let currentImages = poi_obj.images;
-    let imageTemp = null; //used to hold new image data
-    const { status } = await Permissions.askAsync(Permissions.CAMERA); //prompt for cam perms
+    let imageTemp = null; 
+    const { status } = await Permissions.askAsync(Permissions.CAMERA); 
     console.log('cam perms', status);
-    if (status !== 'granted') { //if perms denied
+    if (status !== 'granted') {
       Alert.alert('You need to allow camera permissions to take pictures of the cool skate spots you find!\n\nTo change this, visit the Settings app, find this app towards the bottom, and enable.'); return;
     }
 
     let addResult = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All, //allow photo/video
+      mediaTypes: ImagePicker.MediaTypeOptions.Image,
       allowsEditing: true,
       aspect: [1, 1], //require square crop
       quality: .5,
       videoMaxDuration: 30
     });
 
-    if (!addResult.cancelled) { //if image submitted
+    if (!addResult.cancelled) {
       imageTemp = {key: currentImages.length.toString(), data: await this.uriToBase64(addResult.uri), type: addResult.type}; //capture image and pend to push
     }
     currentImages.push(imageTemp); 
@@ -427,7 +428,7 @@ export default class App extends Component {
     this.setState({
       ipComment: '',
       commentInterface: <View style = {{position: 'absolute', height: FRAME_HEIGHT, width: FRAME_WIDTH, backgroundColor: 'rgba(255, 255, 255, 0.8)'}}>
-                          <TouchableOpacity onPress = {() => {this.setState({commentInterface: null});}} style = {{position: 'absolute', height: FRAME_WIDTH * .07, width: FRAME_WIDTH * .07, top: 60, right: 50}}>
+                          <TouchableOpacity onPress = {() => {this.setState({commentInterface: null});}} style = {[styles.commentActionButtons, {right: 50}]}>
                             <Image source = {require('./src/components/pointDisplay_x.png')} style = {styles.POIexit_generic}/>
                           </TouchableOpacity>
 
@@ -442,7 +443,7 @@ export default class App extends Component {
                               onChangeText = {(text) => this.setState({ipComment: text})}
                             />
 
-                          <TouchableOpacity onPress = {() => {this.POIcommentSubmissionHandler(poi_obj)}} style = {{position: 'absolute', height: FRAME_WIDTH * .07, width: FRAME_WIDTH * .07, top: 60, right: 80}}>
+                          <TouchableOpacity onPress = {() => {this.POIcommentSubmissionHandler(poi_obj)}} style = {[styles.commentActionButtons, {right: 80}]}>
                             <Image source = {require('./src/components/submitComment.png')} style = {styles.POIexit_generic}/>
                           </TouchableOpacity>
                         </View>
@@ -477,102 +478,58 @@ export default class App extends Component {
 
 
   ////////////////////////////////////////////////////////////////Filtering///////////////////////////////////////////////////////////////////
+  
+  bound = (target, min, max) => (target >= min && target <= max)
 
-  changeFilteredList = (condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max, validTypes) => {
-    console.log('updating filters');
+  changeFilteredList = () => {
+    console.log(this.state.filters);
+    let f = this.state.filters;
 
-    this.setState({condition_min: condition_min, condition_max: condition_max, security_min: security_min, security_max: security_max, accessibility_max: accessibility_max, accessibility_min: accessibility_min, skillLevel_max: skillLevel_max, skillLevel_min: skillLevel_min, validTypes: validTypes});
     let tempArr = [];
     for (i = 0; i < this.state.markers.length; i++) {
       let currMarker = this.state.markers[i];
-      if (currMarker.condition <= condition_max && currMarker.condition >= condition_min && currMarker.security <= security_max 
-          && currMarker.security >= security_min && currMarker.accessibility <= accessibility_max && currMarker.accessibility >= accessibility_min 
-          && currMarker.skillLevel <= skillLevel_max && currMarker.skillLevel >= skillLevel_min && validTypes[currMarker.type]) {
+      if (this.bound(currMarker.condition, f.condition_min, f.condition_max) &&
+          this.bound(currMarker.security, f.security_min, f.security_max) && 
+          this.bound(currMarker.accessibility, f.accessibility_min, f.accessibility_max) &&
+          this.bound(currMarker.skillLevel, f.skillLevel_min, f.skillLevel_max) && 
+          this.state.validTypes[currMarker.type]) {
         tempArr.push(currMarker);
       }
     }
     this.setState({filteredMarkers: tempArr});
-    console.log(condition_min, condition_max, security_min, security_max, accessibility_min, accessibility_max, skillLevel_min, skillLevel_max, validTypes);
   };
 
   showFilters = async () => {
-    console.log('showing filters');
-    if (this.state.filterMenu) {this.setState({filterMenu: null}); return;}
+    if (this.state.filterMenu) {this.nullifyFilterMenu(); return;}
     this.setState({currentPOI_comments: null, currentPOI_images: null, addPOImenu: null, displayPOImenu: null});
-    let condition_min = this.state.condition_min; let condition_max = this.state.condition_max;
-    let security_min = this.state.security_min; let security_max = this.state.security_max;
-    let skillLevel_min = this.state.skillLevel_min; let skillLevel_max = this.state.skillLevel_max;
-    let accessibility_min = this.state.accessibility_min; let accessibility_max = this.state.accessibility_max;
 
     let animVal = new Animated.Value(-500);
     filterTypesAnimVal = new Animated.Value(-500);
     this.setState({
-      filterMenu: <Animated.View style = {{height: 300, backgroundColor: 'white', borderRadius: 40, width: FRAME_WIDTH, position: 'absolute', top: animVal, flexDirection: 'row', flexWrap: 'wrap'}}>
+      filterMenu: <Animated.View style = {[styles.filterMenuAnimWrap, {top: animVal}]}>
+                    {createRangeSlider('Accessibility',
+                      value => {this.state.filters.accessibility_min = value; this.changeFilteredList();}, 
+                      value => {this.state.filters.accessibility_max = value; this.changeFilteredList();}, 
+                      this.state.filters.accessibility_min, this.state.filters.accessibility_max
+                    )}
 
-                    <View style = {{width: FRAME_WIDTH / 2, alignItems: 'center', marginTop: 10}}>
-                      <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Accessibility</Text>
-                      <RangeSlider min = {0} max = {10}
-                        styleSize = 'small'
-                        fromValueOnChange = {value => {accessibility_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max, this.state.validTypes);}}
-                        toValueOnChange = {value => {accessibility_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max, this.state.validTypes);}}
-                        initialFromValue = {accessibility_min}
-                        initialToValue = {accessibility_max}
-                        
-                        fromKnobColor = {NEUTRAL_COLOR}
-                        toKnobColor = {NEUTRAL_COLOR}
-                        inRangeBarColor = {POS_COLOR}
-                        outOfRangeBarColor = {NEG_COLOR}
-                      />
-                    </View>
+                    {createRangeSlider('Skill Level',
+                      value => {this.state.filters.skillLevel_min = value; this.changeFilteredList();}, 
+                      value => {this.state.filters.skillLevel_max = value; this.changeFilteredList();}, 
+                      this.state.filters.skillLevel_min, this.state.filters.skillLevel_max
+                    )}
 
-                    <View style = {{width: FRAME_WIDTH / 2, alignItems: 'center', marginTop: 10}}>
-                      <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Skill Level</Text>
-                      <RangeSlider min = {0} max = {10}
-                        styleSize = 'small'
-                        fromValueOnChange = {value => {skillLevel_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max, this.state.validTypes);}}
-                        toValueOnChange = {value => {skillLevel_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max, this.state.validTypes);}}
-                        initialFromValue = {skillLevel_min}
-                        initialToValue = {skillLevel_max}
+                    {createRangeSlider('Security',
+                      value => {this.state.filters.security_min = value; this.changeFilteredList();}, 
+                      value => {this.state.filters.security_max = value; this.changeFilteredList();}, 
+                      this.state.filters.security_min, this.state.filters.security_max
+                    )}
 
-                        fromKnobColor = {NEUTRAL_COLOR}
-                        toKnobColor = {NEUTRAL_COLOR}
-                        inRangeBarColor = {POS_COLOR}
-                        outOfRangeBarColor = {NEG_COLOR}
-                      />
-                    </View>
-                    
-                    <View style = {{width: FRAME_WIDTH / 2, alignItems: 'center'}}>
-                      <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Security</Text>
-                      <RangeSlider min = {0} max = {10}
-                        styleSize = 'small'
-                        fromValueOnChange = {value => {security_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max, this.state.validTypes);}}
-                        toValueOnChange = {value => {security_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max, this.state.validTypes);}}
-                        initialFromValue = {security_min}
-                        initialToValue = {security_max}
-                        
-                        fromKnobColor = {NEUTRAL_COLOR}
-                        toKnobColor = {NEUTRAL_COLOR}
-                        inRangeBarColor = {POS_COLOR}
-                        outOfRangeBarColor = {NEG_COLOR}
-                      />
-                    </View>
-
-                    <View style = {{width: FRAME_WIDTH / 2, alignItems: 'center'}}>
-                      <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Condition</Text>
-                      <RangeSlider min = {0} max = {10}
-                        styleSize = 'small'
-                        fromValueOnChange = {value => {condition_min = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max, this.state.validTypes);}}
-                        toValueOnChange = {value => {condition_max = value; this.changeFilteredList(condition_min, condition_max, security_min, security_max, skillLevel_min, skillLevel_max, accessibility_min, accessibility_max, this.state.validTypes);}}
-                        initialFromValue = {condition_min}
-                        initialToValue = {condition_max}
-                        
-                        fromKnobColor = {NEUTRAL_COLOR}
-                        toKnobColor = {NEUTRAL_COLOR}
-                        inRangeBarColor = {POS_COLOR}
-                        outOfRangeBarColor = {NEG_COLOR}
-                      />
-                    </View>
-
+                    {createRangeSlider('Condition',
+                      value => {this.state.filters.condition_min = value; this.changeFilteredList();}, 
+                      value => {this.state.filters.condition_max = value; this.changeFilteredList();}, 
+                      this.state.filters.condition_min, this.state.filters.condition_max
+                    )}
                   </Animated.View>
     });
     Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: 120}).start();
@@ -595,7 +552,7 @@ export default class App extends Component {
               <Text
                 allowFontScaling = {false}
                 style = {{
-                  color: this.state.darkModeEnabled ? '#fff' : NEUTRAL_COLOR, //change based on mode status
+                  color: this.state.darkModeEnabled ? '#fff' : NEUTRAL_COLOR,
                   fontSize: 11,
                   textAlign: 'center',
                   paddingTop: FRAME_HEIGHT <= 667 ? 5 : 0 //pad text on top on smaller phones (align with image)
@@ -613,7 +570,7 @@ export default class App extends Component {
           zoomTapEnabled //double tap to zoom
           showsCompass
           style = {{flex: 1}}
-          customMapStyle = {this.state.darkModeEnabled ? darkMapStyle : []} //ternary determines map style based on darkModeEnabled state
+          customMapStyle = {this.state.darkModeEnabled ? darkMapStyle : []} 
         >
           {this.state.regionState ? <MapView.Marker.Animated //marker condition - checked using ternary expression in render()->return() - displayed if regionState defined
                                       coordinate = {this.state.regionState}
@@ -644,51 +601,26 @@ export default class App extends Component {
 
         {this.state.filterMenu}
         {this.state.filterMenu ?
-          <Animated.View style = {{width: FRAME_WIDTH, height: 50, position: 'absolute', top: filterTypesAnimVal, flexDirection: 'row'}}>
-            <CircleCheckBox
-            styleCheckboxContainer = {{paddingLeft: 20}}
-            allowFontScaling = {false}
-            checked = {this.state.validTypes['Ramp']}
-            onToggle = {(checked) => {let newValid = this.state.validTypes; newValid['Ramp'] = !newValid['Ramp']; this.changeFilteredList(this.state.condition_min, this.state.condition_max, this.state.security_min, this.state.security_max, this.state.skillLevel_min, this.state.skillLevel_max, this.state.accessibility_min, this.state.accessibility_max, newValid);}}
-            label = 'Ramps:'
-            labelPosition={LABEL_POSITION.LEFT}
-            styleLabel = {{fontWeight: 'bold'}}
-            outerColor = {POS_COLOR}
-            innerColor = {POS_COLOR}
-            />
-            <CircleCheckBox
-            styleCheckboxContainer = {{paddingLeft: 10}}
-            allowFontScaling = {false}
-            checked = {this.state.validTypes['Rail']}
-            onToggle = {(checked) => {let newValid = this.state.validTypes; newValid['Rail'] = !newValid['Rail']; this.changeFilteredList(this.state.condition_min, this.state.condition_max, this.state.security_min, this.state.security_max, this.state.skillLevel_min, this.state.skillLevel_max, this.state.accessibility_min, this.state.accessibility_max, newValid);}}
-            label = 'Rails:'
-            labelPosition={LABEL_POSITION.LEFT}
-            styleLabel = {{fontWeight: 'bold'}}
-            outerColor = {POS_COLOR}
-            innerColor = {POS_COLOR}
-            />
-            <CircleCheckBox
-            styleCheckboxContainer = {{paddingLeft: 10}}
-            allowFontScaling = {false}
-            checked = {this.state.validTypes['Gap']}
-            onToggle = {(checked) => {let newValid = this.state.validTypes; newValid['Gap'] = !newValid['Gap']; this.changeFilteredList(this.state.condition_min, this.state.condition_max, this.state.security_min, this.state.security_max, this.state.skillLevel_min, this.state.skillLevel_max, this.state.accessibility_min, this.state.accessibility_max, newValid);}}
-            label = 'Gaps:'
-            labelPosition={LABEL_POSITION.LEFT}
-            styleLabel = {{fontWeight: 'bold'}}
-            outerColor = {POS_COLOR}
-            innerColor = {POS_COLOR}
-            />
-            <CircleCheckBox
-            styleCheckboxContainer = {{paddingLeft: 10}}
-            allowFontScaling = {false}
-            checked = {this.state.validTypes['Ledge']}
-            onToggle = {(checked) => {let newValid = this.state.validTypes; newValid['Ledge'] = !newValid['Ledge']; this.changeFilteredList(this.state.condition_min, this.state.condition_max, this.state.security_min, this.state.security_max, this.state.skillLevel_min, this.state.skillLevel_max, this.state.accessibility_min, this.state.accessibility_max, newValid);}}
-            label = 'Ledges:'
-            labelPosition={LABEL_POSITION.LEFT}
-            styleLabel = {{fontWeight: 'bold'}}
-            outerColor = {POS_COLOR}
-            innerColor = {POS_COLOR}
-            />
+          <Animated.View style = {{width: FRAME_WIDTH, height: 50, position: 'absolute', top: filterTypesAnimVal, flexDirection: 'row'}}>   
+            {createCheckbox('Ramps:', 
+              (checked) => {this.state.validTypes.Ramp = !this.state.validTypes.Ramp; this.changeFilteredList();},
+              this.state.validTypes['Ramp']
+            )}
+
+            {createCheckbox('Rails:', 
+              (checked) => {this.state.validTypes.Rail = !this.state.validTypes.Rail; this.changeFilteredList();},
+              this.state.validTypes['Rail']
+            )}
+
+            {createCheckbox('Gaps:', 
+              (checked) => {this.state.validTypes.Gap = !this.state.validTypes.Gap; this.changeFilteredList();},
+              this.state.validTypes['Gap']
+            )}
+
+            {createCheckbox('Ledges:', 
+              (checked) => {this.state.validTypes.Ledge = !this.state.validTypes.Ledge; this.changeFilteredList();},
+              this.state.validTypes['Ledge']
+            )}
           </Animated.View>  
         : null}
         
@@ -698,11 +630,7 @@ export default class App extends Component {
             <TouchableOpacity onPress = {this.selectImage} style = {{justifyContent: 'center', height: 31, width: 150, position: 'absolute'}}>
               <Image
                 source = {this.state.pendingPOI_image ? require('./src/components/uploadimg_pos.png') : require('./src/components/uploadimg_neg.png')} 
-                style = {{
-                  resizeMode: 'contain',
-                  width: 150,
-                  position: 'absolute',
-                }}
+                style = {{resizeMode: 'contain', width: 150, position: 'absolute'}}
               />
               <Text allowFontScaling = {false} style = {{fontWeight: 'bold', alignSelf: 'center'}}>Add Image</Text>
             </TouchableOpacity>
@@ -734,12 +662,12 @@ export default class App extends Component {
         </TouchableOpacity>
         
         <TouchableOpacity onPress = {this.initiate_addPOI}>
-          <Image  //'add POI' button
+          <Image
             style = {{
-              position: 'absolute', //positioned absolutely to play nice with map
-              bottom: .04  * FRAME_HEIGHT, //4% from bottom of screen
-              left: (FRAME_WIDTH - PLUS_ICON_DIM)/2, //centered
-              height: PLUS_ICON_DIM, //set using previously calculated icon dimensions
+              position: 'absolute',
+              bottom: .04  * FRAME_HEIGHT,
+              left: (FRAME_WIDTH - PLUS_ICON_DIM)/2,
+              height: PLUS_ICON_DIM,
               width: PLUS_ICON_DIM,
               resizeMode: 'contain'
             }}
@@ -747,12 +675,12 @@ export default class App extends Component {
                         this.state.displayPOImenu ? require('./src/components/dmplus_x.png') : require('./src/components/dmplus.png')
                         :
                         this.state.displayPOImenu ? require('./src/components/plus_x.png') : require('./src/components/plus.png')
-                      } //nested ternary to determine icon based on dark mode and POI menu statuses
+                      }
           />
         </TouchableOpacity>
 
         <TouchableOpacity onPress = {this.darkModeSwitch}>
-          <Image  //'mode' button
+          <Image 
             style = {styles.DMswitch}
             source = {this.state.darkModeEnabled ? require('./src/components/lm.png') : require('./src/components/dm.png')}
           />
