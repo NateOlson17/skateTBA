@@ -1,3 +1,5 @@
+// @flow
+
 import React, { Component } from 'react';
 import { View, Image, TouchableOpacity, Text, Alert, StatusBar, Platform, FlatList, Animated, TextInput } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
@@ -17,14 +19,9 @@ import * as Font from 'expo-font';
 import fontelloConfig from './src/fonts/config.json';
 import { db } from './src/config';
 import { darkMapStyle, POS_COLOR, NEG_COLOR, NEUTRAL_COLOR, FRAME_WIDTH, FRAME_HEIGHT, PLUS_ICON_DIM, POI_MENU_DIM } from './src/constants';
+import type { PointOfInterest, PImage } from './src/constants';
 import { createSlider, createRatingBar, createCurrentPOIAction, createRangeSlider, createCheckbox } from './src/componentCreation';
 import { styles } from './src/styles';
-
-
-//revisit comments
-//consistent style naming
-//add type to current POI display
-//line up bug report button
 
 //settings/info
 //cache images?
@@ -38,14 +35,13 @@ import { styles } from './src/styles';
 //make sure permissions dont break the app
 //test different ios versions
 
-
 const Icon = createIconSetFromFontello(fontelloConfig);
 let imageButtonAnimVal = new Animated.Value(-500);
 let imageSampleAnimVal = new Animated.Value(-500);
 let filterTypesAnimVal = new Animated.Value(-500);
 
-export default class App extends Component {
-  constructor(props) {
+export default class App extends Component<{}, any> {
+  constructor(props: any) {
     super(props);
     this.state = { //general main process dynamic reference storage
 
@@ -90,8 +86,9 @@ export default class App extends Component {
 
 
   /////////////////////////////////////////////////LOCATION AND MOUNT TASKS///////////////////////////////////////////////////////////////////////
-
-  _getLocationAsync = async () => {
+  location: any
+  heading: any
+  _getLocationAsync: (() => any) = async () => {
     if (!this.state.didMount) {return;}
     this.location = await Location.watchPositionAsync(
       {
@@ -116,14 +113,16 @@ export default class App extends Component {
     );
   };
 
-  componentDidMount = async () => {
+  componentDidMount: (() => Promise<void>) = async () => {
     console.log('FW x FH =>', FRAME_WIDTH, FRAME_HEIGHT); //display frame dimensions in console (UIkit sizes, not true pixel)
     this.setState({didMount: true});
     
     db.ref('/poi').on('value', (snapshot) => {
       let markersTemp = snapshot.val();
+      //$FlowIssue[incompatible-use] flow assumes markersTemp[key] is incorrectly typed key accessing index of markersTemp[]
       markersTemp = Object.keys(markersTemp).map((key) => [String(key), markersTemp[key]]); //map object string identifiers assigned by Firebase to object info
       this.setState({markers: []});
+      let i;
       for (i = 0; i < markersTemp.length; i++) { //iterate through the remapped snapshot
         markersTemp[i][1].id = markersTemp[i][0]; //use FB-assigned string identifiers as object properties (id)
         this.state.markers.push(markersTemp[i][1]); //push object from remap to markers state var
@@ -142,12 +141,12 @@ export default class App extends Component {
     await Font.loadAsync({fontello: require('./src/fonts/fontello.ttf')});
   };
 
-  componentWillUnmount = () => {this.setState({didMount: false})}; //update state (checked for in _getLocationAsync)
+  componentWillUnmount: (() => void) = () => {this.setState({didMount: false})}; //update state (checked for in _getLocationAsync)
 
 
  ///////////////////////////////////////////////////POI Addition, Bug Reports, & Mode Switching/////////////////////////////////////////////////////////////////
 
-  initiate_addPOI = () => {
+  initiate_addPOI: (() => void) = () => {
     this.nullifyCurrentPOI();
     this.nullifyFilterMenu();
     this.setState({pendingPOI_image: null, pendingPOI_type: null});
@@ -194,11 +193,11 @@ export default class App extends Component {
     Animated.spring(imageSampleAnimVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 85}).start();
   };
 
-  darkModeSwitch = () => {this.setState({darkModeEnabled: !this.state.darkModeEnabled});}
+  darkModeSwitch: (() => void) = () => {this.setState({darkModeEnabled: !this.state.darkModeEnabled});}
 
-  initBugReport = () => {text('17085574833', 'Bug Report or Suggestion:\n');}
+  initBugReport: (() => void) = () => {text('17085574833', 'Bug Report or Suggestion:\n');}
 
-  pushPOIdata = async () => {
+  pushPOIdata: (() => Promise<void>) = async () => {
     if (this.state.pendingPOI_type && this.state.regionState && this.state.pendingPOI_image) {
       console.log('pushing to RTDB');
       db.ref('/poi').push({ //push POI data to directory
@@ -217,12 +216,12 @@ export default class App extends Component {
     }
   };
 
-  uriToBase64 = async uripath => {
-    result = await ImageManipulator.manipulateAsync(uripath, [], {base64: true, compress: .4, format: ImageManipulator.SaveFormat.JPEG});
+  uriToBase64: ((uripath: string) => Promise<empty>) = async uripath => {
+    let result = await ImageManipulator.manipulateAsync(uripath, [], {base64: true, compress: .4, format: ImageManipulator.SaveFormat.JPEG});
     return result.base64;
   };
 
-  selectImage = async () => { //triggered by select image button on POI addition menu
+  selectImage: (() => Promise<void>) = async () => { //triggered by select image button on POI addition menu
     const {status} = await Permissions.askAsync(Permissions.CAMERA);
     console.log('cam perms', status);
     if (status !== 'granted') {
@@ -244,12 +243,12 @@ export default class App extends Component {
 
   //////////////////////////////////////////////////////////////POI Viewing & Image/Comment Addition/////////////////////////////////////////////////////////////////////////////
 
-  nullifyCurrentPOI = () => {this.setState({currentPOI: null, currentPOI_images: null, currentPOI_comments: null});} //helper functions to get rid of unneeded menu renders
-  nullifyImageMenu = () => {this.setState({currentPOI_images: null});}
-  nullifyCommentMenu = () => {this.setState({currentPOI_comments: null});}
-  nullifyFilterMenu = () => {this.setState({filterMenu: null});}
+  nullifyCurrentPOI: (() => void) = () => {this.setState({currentPOI: null, currentPOI_images: null, currentPOI_comments: null});} //helper functions to get rid of unneeded menu renders
+  nullifyImageMenu: (() => void) = () => {this.setState({currentPOI_images: null});}
+  nullifyCommentMenu: (() => void) = () => {this.setState({currentPOI_comments: null});}
+  nullifyFilterMenu: (() => void) = () => {this.setState({filterMenu: null});}
 
-  POIactivationHandler = poi_obj => {
+  POIactivationHandler: ((poi_obj: PointOfInterest) => void) = poi_obj => {
     console.log('POI activated; id =>', poi_obj.id);
     this.nullifyCommentMenu();
     this.nullifyImageMenu();
@@ -269,10 +268,12 @@ export default class App extends Component {
                       <Image source = {require('./src/components/gestureBar.png')} style = {styles.gestureBar}/>
 
                       <View style={{paddingTop: 40}}>
-                        {createRatingBar(poi_obj, 'accessibility', 'Accessibility:', accessibilityIndicatorLM, 10)}
-                        {createRatingBar(poi_obj, 'skillLevel', 'Skill Level:', skillLevelIndicatorLM, 29)}
-                        {createRatingBar(poi_obj, 'condition', 'Condition:', conditionIndicatorLM, 30)}
-                        {createRatingBar(poi_obj, 'security', 'Security:', securityIndicatorLM, 39)}
+                        {createRatingBar(poi_obj['accessibility'], 'Accessibility:', accessibilityIndicatorLM, 10)}
+                        {createRatingBar(poi_obj['skillLevel'], 'Skill Level:', skillLevelIndicatorLM, 29)}
+                        {createRatingBar(poi_obj['condition'], 'Condition:', conditionIndicatorLM, 30)}
+                        {createRatingBar(poi_obj['security'], 'Security:', securityIndicatorLM, 39)}
+
+                        <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 63}}>Type:             {poi_obj.type}</Text>
                       </View>
 
                       <View style={{width: 150, height: 150, paddingTop: 50, paddingLeft: 10, flexWrap: 'wrap'}}>       
@@ -299,7 +300,7 @@ export default class App extends Component {
     }, 300);
   };
 
-  enableCurrentPOI_images = poi_obj => {
+  enableCurrentPOI_images: ((poi_obj: PointOfInterest) => void) = poi_obj => {
     this.nullifyCommentMenu();
     this.nullifyFilterMenu();
 
@@ -339,7 +340,7 @@ export default class App extends Component {
     Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: 0}).start(); //animate menu slide-in
   };
 
-  displayFullsizeImage = img => {//display fullscreen image with swipe-down handler (no animation)
+  displayFullsizeImage: ((img: PImage) => void) = img => {//display fullscreen image with swipe-down handler (no animation)
     this.setState({fullImg: <FlingGestureHandler
                               direction = {Directions.DOWN}
                               onHandlerStateChange={({ nativeEvent }) => {
@@ -354,9 +355,9 @@ export default class App extends Component {
     });
   };
 
-  addPOIimage = async poi_obj => {
+  addPOIimage: ((poi_obj: PointOfInterest) => Promise<void>) = async poi_obj => {
     let currentImages = poi_obj.images;
-    let imageTemp = null; 
+    let imageTemp: PImage = {data: '', key: '', type: ''}; 
     const { status } = await Permissions.askAsync(Permissions.CAMERA); 
     console.log('cam perms', status);
     if (status !== 'granted') {
@@ -379,7 +380,7 @@ export default class App extends Component {
     db.ref(`/poi/${poi_obj.id}`).update({images: currentImages});
   };
 
-  enableCurrentPOI_comments = poi_obj => {
+  enableCurrentPOI_comments: ((poi_obj: PointOfInterest) => void) = poi_obj => {
     console.log('displaying comments');
     this.nullifyImageMenu();
     this.setState({filterMenu: null});
@@ -421,7 +422,7 @@ export default class App extends Component {
     Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: 0}).start(); //appearance animation
   };
 
-  addPOIcomment = poi_obj => {
+  addPOIcomment: ((poi_obj: PointOfInterest) => void) = poi_obj => {
     this.nullifyCurrentPOI();
     this.nullifyFilterMenu();
 
@@ -432,6 +433,7 @@ export default class App extends Component {
                             <Image source = {require('./src/components/pointDisplay_x.png')} style = {styles.POIexit_generic}/>
                           </TouchableOpacity>
 
+                          {/*$FlowIgnore flow assumes textAlign is invalid prop*/}
                           <TextInput style = {{position: 'absolute', left: FRAME_WIDTH / 2 - 50, bottom: FRAME_HEIGHT / 4, width: 100, height: 300}}
                               allowFontScaling = {false}
                               placeholder = 'Say something about this spot!'
@@ -450,7 +452,7 @@ export default class App extends Component {
     });
   };
 
-  POIcommentSubmissionHandler = poi_obj => {
+  POIcommentSubmissionHandler: ((poi_obj: PointOfInterest) => void) = poi_obj => {
     if (!this.state.ipComment) {return;}
     this.setState({commentInterface: null});
     let currentComments = poi_obj.comments ? poi_obj.comments : [];
@@ -458,7 +460,7 @@ export default class App extends Component {
     db.ref(`/poi/${poi_obj.id}`).update({comments: currentComments});
   }
 
-  initiateNavigation = poi_obj => {
+  initiateNavigation: ((poi_obj: PointOfInterest) => void) = poi_obj => {
     showLocation({
       latitude: poi_obj.regionState.latitude,
       longitude: poi_obj.regionState.longitude,
@@ -471,7 +473,7 @@ export default class App extends Component {
     });
   };
 
-  sharePOIurl = poi_obj => {
+  sharePOIurl: ((poi_obj: PointOfInterest) => void) = poi_obj => {
     Clipboard.setString(`maps.google.com/maps?q=${poi_obj.regionState.latitude},${poi_obj.regionState.longitude}`);
     Alert.alert('Link copied to clipboard.');
   }
@@ -479,13 +481,13 @@ export default class App extends Component {
 
   ////////////////////////////////////////////////////////////////Filtering///////////////////////////////////////////////////////////////////
   
-  bound = (target, min, max) => (target >= min && target <= max)
+  bound: ((target: number, min: number, max: number) => boolean) = (target, min, max) => (target >= min && target <= max)
 
-  changeFilteredList = () => {
+  changeFilteredList: (() => void) = () => {
     console.log(this.state.filters);
     let f = this.state.filters;
 
-    let tempArr = [];
+    let i, tempArr = [];
     for (i = 0; i < this.state.markers.length; i++) {
       let currMarker = this.state.markers[i];
       if (this.bound(currMarker.condition, f.condition_min, f.condition_max) &&
@@ -499,7 +501,7 @@ export default class App extends Component {
     this.setState({filteredMarkers: tempArr});
   };
 
-  showFilters = async () => {
+  showFilters: (() => Promise<void>) = async () => {
     if (this.state.filterMenu) {this.nullifyFilterMenu(); return;}
     this.setState({currentPOI_comments: null, currentPOI_images: null, addPOImenu: null, displayPOImenu: null});
 
@@ -538,7 +540,7 @@ export default class App extends Component {
 
 
   /////////////////////////////////////////////////////////////////////MAIN RENDER///////////////////////////////////////////////////////////////
-  render() {
+  render(): any {
     Platform.OS === 'ios' && Constants.statusBarHeight > 40 ? //check if iOS phone has 'notch', set dark/light mode to status bar icons if true
       this.state.darkModeEnabled ? StatusBar.setBarStyle('light-content', true) : StatusBar.setBarStyle('dark-content', true)
     : null;
@@ -546,7 +548,7 @@ export default class App extends Component {
     return (
       <View style = {styles.container}>
 
-        <View style = {{position: 'absolute', left: 0, top: 40, zIndex: 1}}>
+        <View style = {{position: 'absolute', left: 0, top: 10, zIndex: 1}}>
           <TouchableOpacity onPress = {this.initBugReport} style = {[FRAME_HEIGHT <= 667 ? {flexDirection: 'row', paddingLeft: 30} : null, {position: 'absolute', top: 40, zIndex: 1}]}> 
             <Image style = {styles.bugReportImg} source = {require('./src/components/reportbug.png')}/>
               <Text

@@ -1,3 +1,5 @@
+// @flow
+
 import { Dimensions } from 'react-native';
 
 export const darkMapStyle = [ //generate dark map style (stored locally)
@@ -24,8 +26,36 @@ export const darkMapStyle = [ //generate dark map style (stored locally)
 export const POS_COLOR = '#6cccdc'; export const NEG_COLOR = '#dc6c6c'; export const NEUTRAL_COLOR = '#041c4b';
 
 //dimension reading and proportion fallback determinations
-export const FRAME_WIDTH = Dimensions.get('window').width;
-export const FRAME_HEIGHT =  Dimensions.get('window').height;
+export const FRAME_WIDTH = (Dimensions.get('window').width: number);
+export const FRAME_HEIGHT =  (Dimensions.get('window').height: number);
 export const PLUS_ICON_DIM = FRAME_WIDTH * .25;
 export const DM_ICON_DIM = FRAME_WIDTH * .15;
 export const POI_MENU_DIM = 338;
+
+type PComment = {
+    key: string,
+    text: string
+};
+
+export type PImage = {
+    data: string,
+    key: string,
+    type: string
+};
+
+type RegionState = {
+    latitude: number,
+    longitude: number
+};
+
+export type PointOfInterest = {
+    accessibility: number,
+    comments: PComment[],
+    condition: number,
+    id: string,
+    images: PImage[],
+    regionState: RegionState,
+    security: number,
+    skillLevel: number,
+    type: string
+};
