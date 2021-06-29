@@ -19,15 +19,18 @@ import * as Font from 'expo-font';
 import fontelloConfig from './src/fonts/config.json';
 import { db } from './src/config';
 import { darkMapStyle, POS_COLOR, NEG_COLOR, NEUTRAL_COLOR, FRAME_WIDTH, FRAME_HEIGHT, PLUS_ICON_DIM, POI_MENU_DIM } from './src/constants';
-import type { PointOfInterest, PImage } from './src/constants';
+import type { PointOfInterest, PImage, PComment, FilterConstraint } from './src/constants';
 import { createSlider, createRatingBar, createCurrentPOIAction, createRangeSlider, createCheckbox } from './src/componentCreation';
 import { styles } from './src/styles';
 
 //settings/info
 //cache images?
-//add star rating or allow users to change ratings? otherwise one user sets ratings forever
+//finish secondary rating system
 //prompt for rating when leaving area
 //add video support
+//adding comments/ratings invalidates poi
+
+//LOWER PRIORITY
 //widget that shows surrounding points
 //app rating prompts
 //haptics/3d touch (which models?)
@@ -122,7 +125,7 @@ export default class App extends Component<{}, any> {
       //$FlowIssue[incompatible-use] flow assumes markersTemp[key] is incorrectly typed key accessing index of markersTemp[]
       markersTemp = Object.keys(markersTemp).map((key) => [String(key), markersTemp[key]]); //map object string identifiers assigned by Firebase to object info
       this.setState({markers: []});
-      let i;
+      let i: number;
       for (i = 0; i < markersTemp.length; i++) { //iterate through the remapped snapshot
         markersTemp[i][1].id = markersTemp[i][0]; //use FB-assigned string identifiers as object properties (id)
         this.state.markers.push(markersTemp[i][1]); //push object from remap to markers state var
@@ -208,6 +211,7 @@ export default class App extends Component<{}, any> {
         security: this.state.pendingPOI_security,
         regionState: {latitude: this.state.regionState.latitude, longitude: this.state.regionState.longitude},
         images: [{key: '0', data: await this.uriToBase64(this.state.pendingPOI_image.uri), type: this.state.pendingPOI_image.type}],//await promise response from helper func, then push base64 return value
+        numRatings: 1
       });
       this.setState({displayPOImenu: false, addPOImenu: null});
       Alert.alert('Your skate spot has been added to the database!😎 \n\n(This is monitored and spam entries will be deleted)');
@@ -217,7 +221,7 @@ export default class App extends Component<{}, any> {
   };
 
   uriToBase64: ((uripath: string) => Promise<empty>) = async uripath => {
-    let result = await ImageManipulator.manipulateAsync(uripath, [], {base64: true, compress: .4, format: ImageManipulator.SaveFormat.JPEG});
+    const result = await ImageManipulator.manipulateAsync(uripath, [], {base64: true, compress: .4, format: ImageManipulator.SaveFormat.JPEG});
     return result.base64;
   };
 
@@ -228,7 +232,7 @@ export default class App extends Component<{}, any> {
       Alert.alert('You need to allow camera permissions to take pictures of the cool skate spots you find!\n\nTo change this, visit the Settings app, find this app towards the bottom, and enable.'); return;
     }
 
-    let result = await ImagePicker.launchCameraAsync({
+    const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1], //require square crop
@@ -265,7 +269,7 @@ export default class App extends Component<{}, any> {
                       }
                   }}>
                     <Animated.View style = {[styles.currentPOIWrapper, {bottom: viewAnim}]}>
-                      <Image source = {require('./src/components/gestureBar.png')} style = {styles.gestureBar}/>
+                      <View style={styles.gestureBar}/>
 
                       <View style={{paddingTop: 40}}>
                         {createRatingBar(poi_obj['accessibility'], 'Accessibility:', accessibilityIndicatorLM, 10)}
@@ -274,6 +278,15 @@ export default class App extends Component<{}, any> {
                         {createRatingBar(poi_obj['security'], 'Security:', securityIndicatorLM, 39)}
 
                         <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 63}}>Type:             {poi_obj.type}</Text>
+                        
+                        <View style={{flexDirection: 'row'}}>
+                          <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 63}}>{poi_obj.numRatings} Rating{poi_obj.numRatings > 1 ? 's' : ''}</Text>
+                          <TouchableOpacity onPress = {() => {this.modifyRating(poi_obj)}}>
+                            <View style={{backgroundColor: POS_COLOR, borderRadius: 10, width: 120, paddingLeft: 5}}>
+                              <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Rate this spot!</Text>
+                            </View>
+                          </TouchableOpacity>
+                        </View>
                       </View>
 
                       <View style={{width: 150, height: 150, paddingTop: 50, paddingLeft: 10, flexWrap: 'wrap'}}>       
@@ -316,7 +329,7 @@ export default class App extends Component<{}, any> {
                           }}>
                             <Animated.View style = {[styles.POIimagesWrapper, {top: animVal}]}>
                               <View style = {styles.POIdisplayAdditionalMenu_ContentWrapper}>
-                                <Image source = {require('./src/components/gestureBar.png')} style = {styles.gestureBar}/>
+                                <View style={styles.gestureBar}/>
 
                                 <FlatList
                                   style = {{paddingLeft: 20}}
@@ -356,7 +369,7 @@ export default class App extends Component<{}, any> {
   };
 
   addPOIimage: ((poi_obj: PointOfInterest) => Promise<void>) = async poi_obj => {
-    let currentImages = poi_obj.images;
+    let currentImages: PImage[] = poi_obj.images;
     let imageTemp: PImage = {data: '', key: '', type: ''}; 
     const { status } = await Permissions.askAsync(Permissions.CAMERA); 
     console.log('cam perms', status);
@@ -364,7 +377,7 @@ export default class App extends Component<{}, any> {
       Alert.alert('You need to allow camera permissions to take pictures of the cool skate spots you find!\n\nTo change this, visit the Settings app, find this app towards the bottom, and enable.'); return;
     }
 
-    let addResult = await ImagePicker.launchCameraAsync({
+    const addResult = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Image,
       allowsEditing: true,
       aspect: [1, 1], //require square crop
@@ -397,7 +410,7 @@ export default class App extends Component<{}, any> {
                             }}>
                               <Animated.View style = {[styles.POIcommentsWrapper, {top: animVal}]}>
                                 <View style = {styles.POIdisplayAdditionalMenu_ContentWrapper}>
-                                  <Image source = {require('./src/components/gestureBar.png')} style = {styles.gestureBar}/>
+                                  <View style={styles.gestureBar}/>
 
                                   {
                                   poi_obj.comments ?
@@ -455,7 +468,7 @@ export default class App extends Component<{}, any> {
   POIcommentSubmissionHandler: ((poi_obj: PointOfInterest) => void) = poi_obj => {
     if (!this.state.ipComment) {return;}
     this.setState({commentInterface: null});
-    let currentComments = poi_obj.comments ? poi_obj.comments : [];
+    let currentComments: PComment[] = poi_obj.comments ? poi_obj.comments : [];
     currentComments.push({key: currentComments.length.toString(), text: this.state.ipComment})
     db.ref(`/poi/${poi_obj.id}`).update({comments: currentComments});
   }
@@ -476,6 +489,14 @@ export default class App extends Component<{}, any> {
   sharePOIurl: ((poi_obj: PointOfInterest) => void) = poi_obj => {
     Clipboard.setString(`maps.google.com/maps?q=${poi_obj.regionState.latitude},${poi_obj.regionState.longitude}`);
     Alert.alert('Link copied to clipboard.');
+  };
+
+  modifyRating: ((poi_obj: PointOfInterest) => void) = poi_obj => {
+    //const newCondition: number = ((poi_obj.numRatings * poi_obj.condition) + newRating)/(poi_obj.numRatings + 1)
+    //const newSkillLevel: number = ((poi_obj.numRatings * poi_obj.skillLevel) + newRating)/(poi_obj.numRatings + 1)
+    //const newAccessibility: number = ((poi_obj.numRatings * poi_obj.accessibility) + newRating)/(poi_obj.numRatings + 1)
+    //const newSecurity: number = ((poi_obj.numRatings * poi_obj.security) + newRating)/(poi_obj.numRatings + 1)
+    db.ref(`/poi/${poi_obj.id}`).update({numRatings: poi_obj.numRatings + 1});
   }
 
 
@@ -485,11 +506,11 @@ export default class App extends Component<{}, any> {
 
   changeFilteredList: (() => void) = () => {
     console.log(this.state.filters);
-    let f = this.state.filters;
+    const f: FilterConstraint = this.state.filters;
 
-    let i, tempArr = [];
+    let i: number, tempArr: PointOfInterest[] = [];
     for (i = 0; i < this.state.markers.length; i++) {
-      let currMarker = this.state.markers[i];
+      let currMarker: PointOfInterest = this.state.markers[i];
       if (this.bound(currMarker.condition, f.condition_min, f.condition_max) &&
           this.bound(currMarker.security, f.security_min, f.security_max) && 
           this.bound(currMarker.accessibility, f.accessibility_min, f.accessibility_max) &&
@@ -628,12 +649,8 @@ export default class App extends Component<{}, any> {
         
 
         {this.state.displayPOImenu ?
-          <Animated.View style = {{position: 'absolute', bottom: imageButtonAnimVal, left: (FRAME_WIDTH - POI_MENU_DIM)/2 + 160, height: 31, width: 150}}>
+          <Animated.View style = {[styles.POIdisplay, {bottom: imageButtonAnimVal, backgroundColor: this.state.pendingPOI_image ? POS_COLOR : NEG_COLOR}]}>
             <TouchableOpacity onPress = {this.selectImage} style = {{justifyContent: 'center', height: 31, width: 150, position: 'absolute'}}>
-              <Image
-                source = {this.state.pendingPOI_image ? require('./src/components/uploadimg_pos.png') : require('./src/components/uploadimg_neg.png')} 
-                style = {{resizeMode: 'contain', width: 150, position: 'absolute'}}
-              />
               <Text allowFontScaling = {false} style = {{fontWeight: 'bold', alignSelf: 'center'}}>Add Image</Text>
             </TouchableOpacity>
           </Animated.View>
@@ -656,7 +673,7 @@ export default class App extends Component<{}, any> {
             </Animated.View>
         : null}
 
-        <TouchableOpacity onPress = {this.showFilters} style = {{position: 'absolute', bottom: FRAME_HEIGHT * .04 + 20, left: (FRAME_WIDTH - 40) / 2 - FRAME_WIDTH * .25, width: 40, height: 40}}>
+        <TouchableOpacity onPress = {this.showFilters} style = {styles.showFiltersButton}>
           <Image
             source = {this.state.darkModeEnabled ? require('./src/components/filters_dm.png') : require('./src/components/filters.png')}
             style = {{resizeMode: 'contain', width: 50, height: 50}}

@@ -32,7 +32,7 @@ export const PLUS_ICON_DIM = FRAME_WIDTH * .25;
 export const DM_ICON_DIM = FRAME_WIDTH * .15;
 export const POI_MENU_DIM = 338;
 
-type PComment = {
+export type PComment = {
     key: string,
     text: string
 };
@@ -43,7 +43,7 @@ export type PImage = {
     type: string
 };
 
-type RegionState = {
+export type RegionState = {
     latitude: number,
     longitude: number
 };
@@ -57,5 +57,17 @@ export type PointOfInterest = {
     regionState: RegionState,
     security: number,
     skillLevel: number,
-    type: string
+    type: string,
+    numRatings: number
+};
+
+export type FilterConstraint = {
+    accessibility_max: number,
+    accessibility_min: number,
+    condition_max: number,
+    condition_min: number,
+    security_max: number,
+    security_min: number,
+    skillLevel_max: number,
+    skillLevel_min: number
 };

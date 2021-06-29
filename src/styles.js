@@ -69,11 +69,12 @@ export const styles = StyleSheet.create({
     gestureBar: {
         width: FRAME_WIDTH * .6, 
         height: 3,
-        resizeMode: 'stretch', 
         position: 'absolute', 
         left: FRAME_WIDTH * .2, 
         top: 7, 
-        opacity: .3
+        opacity: .3,
+        backgroundColor: 'gray',
+        borderRadius: 20
     },
 
     POIAdditionWrapper: {
@@ -169,5 +170,21 @@ export const styles = StyleSheet.create({
         height: FRAME_WIDTH * .07, 
         width: FRAME_WIDTH * .07, 
         top: 60
-    }
+    },
+
+    POIdisplay: {
+        position: 'absolute',
+        left: (FRAME_WIDTH - POI_MENU_DIM)/2 + 160, 
+        height: 31, 
+        width: 150, 
+        borderRadius: 20
+    },
+
+   showFiltersButton: {
+       position: 'absolute',
+       bottom: FRAME_HEIGHT * .04 + 20,
+       left: (FRAME_WIDTH - 40) / 2 - FRAME_WIDTH * .25,
+       width: 40,
+       height: 40
+   } 
 });
