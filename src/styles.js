@@ -186,5 +186,17 @@ export const styles = StyleSheet.create({
        left: (FRAME_WIDTH - 40) / 2 - FRAME_WIDTH * .25,
        width: 40,
        height: 40
-   } 
+   },
+
+   secondaryRatingPanel: {
+       backgroundColor: 'white', 
+       borderRadius: 40, 
+       width: POI_MENU_DIM, 
+       height: 300, 
+       position: 'absolute', 
+       left: (FRAME_WIDTH - POI_MENU_DIM)/2,
+       bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 210,
+       flexDirection: 'row',
+       flexWrap: 'wrap'
+    }
 });

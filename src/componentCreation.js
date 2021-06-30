@@ -7,7 +7,7 @@ import { styles } from './styles'
 import { POI_MENU_DIM, NEUTRAL_COLOR, POS_COLOR, NEG_COLOR } from './constants';
 import CircleCheckBox, { LABEL_POSITION } from 'react-native-circle-checkbox';
 
-export const createSlider = (onChange: () => void, title: string): React$Element<typeof View> => (
+export const createSlider = (onChange: (any) => void, title: string): React$Element<typeof View> => (
     <View style = {{paddingLeft: POI_MENU_DIM * .05, width: POI_MENU_DIM * .5}}>
         <Text allowFontScaling = {false} style = {{alignSelf: 'center', fontWeight: 'bold'}}>{title}</Text>
         <Slider min = {0} max = {10} step = {1} 
@@ -31,7 +31,7 @@ export const createRatingBar = (rating: number, textString: string, animationObj
             style = {{resizeMode: 'contain', width: 10, height: 10, marginLeft: rating === 0 ? 1 : animationObj}}
         />
         </View>
-        <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 5}}> ({rating})</Text>
+        <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 5}}> {rating.toFixed(1)}</Text>
     </View>
 )
 

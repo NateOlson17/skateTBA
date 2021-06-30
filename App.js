@@ -71,6 +71,7 @@ export default class App extends Component<{}, any> {
       currentPOI_images: null,
       currentPOI_comments: null,
       addPOImenu: null,
+      secondaryRatingPanel: null,
 
       commentInterface: null,
       ipComment: '',
@@ -84,6 +85,7 @@ export default class App extends Component<{}, any> {
         skillLevel_min: 0, skillLevel_max: 10, accessibility_min: 0, accessibility_max: 10
       },
       validTypes: { Ramp: true, Rail: true, Ledge: true, Gap: true }
+
     };
   }
 
@@ -152,6 +154,7 @@ export default class App extends Component<{}, any> {
   initiate_addPOI: (() => void) = () => {
     this.nullifyCurrentPOI();
     this.nullifyFilterMenu();
+    this.nullifySecondaryRatingPanel();
     this.setState({pendingPOI_image: null, pendingPOI_type: null});
     this.setState({displayPOImenu: !this.state.displayPOImenu});
     
@@ -251,9 +254,9 @@ export default class App extends Component<{}, any> {
   nullifyImageMenu: (() => void) = () => {this.setState({currentPOI_images: null});}
   nullifyCommentMenu: (() => void) = () => {this.setState({currentPOI_comments: null});}
   nullifyFilterMenu: (() => void) = () => {this.setState({filterMenu: null});}
+  nullifySecondaryRatingPanel: (() => void) = () => {this.setState({secondaryRatingPanel: null});}
 
   POIactivationHandler: ((poi_obj: PointOfInterest) => void) = poi_obj => {
-    console.log('POI activated; id =>', poi_obj.id);
     this.nullifyCommentMenu();
     this.nullifyImageMenu();
     let viewAnim = new Animated.Value(-500);
@@ -316,6 +319,7 @@ export default class App extends Component<{}, any> {
   enableCurrentPOI_images: ((poi_obj: PointOfInterest) => void) = poi_obj => {
     this.nullifyCommentMenu();
     this.nullifyFilterMenu();
+    this.nullifySecondaryRatingPanel();
 
     let animVal = new Animated.Value(2 * FRAME_HEIGHT);
     this.setState({
@@ -394,9 +398,9 @@ export default class App extends Component<{}, any> {
   };
 
   enableCurrentPOI_comments: ((poi_obj: PointOfInterest) => void) = poi_obj => {
-    console.log('displaying comments');
     this.nullifyImageMenu();
-    this.setState({filterMenu: null});
+    this.nullifyFilterMenu();
+    this.nullifySecondaryRatingPanel();
 
     let animVal = new Animated.Value(2 * FRAME_HEIGHT);
     this.setState({
@@ -438,6 +442,7 @@ export default class App extends Component<{}, any> {
   addPOIcomment: ((poi_obj: PointOfInterest) => void) = poi_obj => {
     this.nullifyCurrentPOI();
     this.nullifyFilterMenu();
+    this.nullifySecondaryRatingPanel();
 
     this.setState({
       ipComment: '',
@@ -492,11 +497,39 @@ export default class App extends Component<{}, any> {
   };
 
   modifyRating: ((poi_obj: PointOfInterest) => void) = poi_obj => {
-    //const newCondition: number = ((poi_obj.numRatings * poi_obj.condition) + newRating)/(poi_obj.numRatings + 1)
-    //const newSkillLevel: number = ((poi_obj.numRatings * poi_obj.skillLevel) + newRating)/(poi_obj.numRatings + 1)
-    //const newAccessibility: number = ((poi_obj.numRatings * poi_obj.accessibility) + newRating)/(poi_obj.numRatings + 1)
-    //const newSecurity: number = ((poi_obj.numRatings * poi_obj.security) + newRating)/(poi_obj.numRatings + 1)
-    db.ref(`/poi/${poi_obj.id}`).update({numRatings: poi_obj.numRatings + 1});
+    this.nullifyCommentMenu();
+    this.nullifyFilterMenu();
+    this.nullifyImageMenu();
+
+    let newConditionRating: number; let newAccessibilityRating: number; let newSkillLevelRating: number; let newSecurityRating: number;
+
+    this.setState({
+      secondaryRatingPanel: <View style = {styles.secondaryRatingPanel}>
+                                  <TouchableOpacity onPress = {() => {this.nullifySecondaryRatingPanel()}} style = {styles.POIexit_TO}>
+                                    <Image source = {require('./src/components/pointDisplay_x.png')} style = {styles.POIexit_generic}/>
+                                  </TouchableOpacity>
+
+                                  {createSlider(value => {newConditionRating = value}, 'Condition')}
+                                  {createSlider(value => {newAccessibilityRating = value}, 'Accessibility')}
+                                  {createSlider(value => {newSkillLevelRating = value}, 'Skill Level')}
+                                  {createSlider(value => {newSecurityRating = value}, 'Security')}
+
+                                <TouchableOpacity onPress = {() => {this.nullifySecondaryRatingPanel(); this.calculateNewRating(poi_obj, newConditionRating, newAccessibilityRating, newSkillLevelRating, newSecurityRating);}}>
+                                  <Image
+                                    source = {require('./src/components/submitPOI.png')}
+                                    style = {{width: POI_MENU_DIM * .2, height: POI_MENU_DIM * .2, resizeMode: 'contain', paddingLeft: POI_MENU_DIM}}
+                                  />
+                                </TouchableOpacity>
+                              </View>
+    })
+  }
+
+  calculateNewRating: any = (poi_obj: PointOfInterest, newCond: number, newAcc: number, newSkill: number, newSec: number) => {
+    const newCondition: number = ((poi_obj.numRatings * poi_obj.condition) + newCond)/(poi_obj.numRatings + 1);
+    const newSkillLevel: number = ((poi_obj.numRatings * poi_obj.skillLevel) + newSkill)/(poi_obj.numRatings + 1);
+    const newAccessibility: number = ((poi_obj.numRatings * poi_obj.accessibility) + newAcc)/(poi_obj.numRatings + 1);
+    const newSecurity: number = ((poi_obj.numRatings * poi_obj.security) + newSec)/(poi_obj.numRatings + 1);
+    db.ref(`/poi/${poi_obj.id}`).update({numRatings: poi_obj.numRatings + 1, condition: newCondition, skillLevel: newSkillLevel, accessibility: newAccessibility, security: newSecurity});
   }
 
 
@@ -505,7 +538,6 @@ export default class App extends Component<{}, any> {
   bound: ((target: number, min: number, max: number) => boolean) = (target, min, max) => (target >= min && target <= max)
 
   changeFilteredList: (() => void) = () => {
-    console.log(this.state.filters);
     const f: FilterConstraint = this.state.filters;
 
     let i: number, tempArr: PointOfInterest[] = [];
@@ -524,7 +556,11 @@ export default class App extends Component<{}, any> {
 
   showFilters: (() => Promise<void>) = async () => {
     if (this.state.filterMenu) {this.nullifyFilterMenu(); return;}
-    this.setState({currentPOI_comments: null, currentPOI_images: null, addPOImenu: null, displayPOImenu: null});
+    this.nullifySecondaryRatingPanel();
+    this.nullifyCommentMenu();
+    this.nullifyImageMenu();
+    this.nullifyCurrentPOI();
+    this.setState({addPOImenu: null});
 
     let animVal = new Animated.Value(-500);
     filterTypesAnimVal = new Animated.Value(-500);
@@ -620,6 +656,7 @@ export default class App extends Component<{}, any> {
         {this.state.currentPOI_images}
         {this.state.currentPOI_comments}
 
+        {this.state.secondaryRatingPanel}
         {this.state.addPOImenu}
 
         {this.state.filterMenu}
