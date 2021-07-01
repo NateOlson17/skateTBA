@@ -1,6 +1,9 @@
 // @flow
 
-import { Dimensions } from 'react-native';
+import { Dimensions, Alert } from 'react-native';
+import Clipboard from 'expo-clipboard';
+import * as ImageManipulator from 'expo-image-manipulator';
+
 
 export const darkMapStyle = [ //generate dark map style (stored locally)
     {"elementType": "geometry", "stylers": [{"color": "#242f3e"}]},
@@ -48,19 +51,6 @@ export type RegionState = {
     longitude: number
 };
 
-export type PointOfInterest = {
-    accessibility: number,
-    comments: PComment[],
-    condition: number,
-    id: string,
-    images: PImage[],
-    regionState: RegionState,
-    security: number,
-    skillLevel: number,
-    type: string,
-    numRatings: number
-};
-
 export type FilterConstraint = {
     accessibility_max: number,
     accessibility_min: number,
@@ -71,3 +61,8 @@ export type FilterConstraint = {
     skillLevel_max: number,
     skillLevel_min: number
 };
+
+export const uriToBase64: ((uripath: string) => Promise<empty>) = async uripath => {
+    const result = await ImageManipulator.manipulateAsync(uripath, [], {base64: true, compress: .4, format: ImageManipulator.SaveFormat.JPEG});
+    return result.base64;
+  };

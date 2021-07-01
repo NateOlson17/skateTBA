@@ -18,14 +18,15 @@ import * as Font from 'expo-font';
 
 import fontelloConfig from './src/fonts/config.json';
 import { db } from './src/config';
+import { PointOfInterest } from './src/pointOfInterest.js';
 import { darkMapStyle, POS_COLOR, NEG_COLOR, NEUTRAL_COLOR, FRAME_WIDTH, FRAME_HEIGHT, PLUS_ICON_DIM, POI_MENU_DIM } from './src/constants';
-import type { PointOfInterest, PImage, PComment, FilterConstraint } from './src/constants';
+import type { PImage, PComment, FilterConstraint } from './src/constants';
+import { uriToBase64 } from './src/constants';
 import { createSlider, createRatingBar, createCurrentPOIAction, createRangeSlider, createCheckbox } from './src/componentCreation';
 import { styles } from './src/styles';
 
 //settings/info
 //cache images?
-//finish secondary rating system
 //prompt for rating when leaving area
 //add video support
 //adding comments/ratings invalidates poi
@@ -213,7 +214,7 @@ export default class App extends Component<{}, any> {
         condition: this.state.pendingPOI_condition,
         security: this.state.pendingPOI_security,
         regionState: {latitude: this.state.regionState.latitude, longitude: this.state.regionState.longitude},
-        images: [{key: '0', data: await this.uriToBase64(this.state.pendingPOI_image.uri), type: this.state.pendingPOI_image.type}],//await promise response from helper func, then push base64 return value
+        images: [{key: '0', data: await uriToBase64(this.state.pendingPOI_image.uri), type: this.state.pendingPOI_image.type}],//await promise response from helper func, then push base64 return value
         numRatings: 1
       });
       this.setState({displayPOImenu: false, addPOImenu: null});
@@ -221,11 +222,6 @@ export default class App extends Component<{}, any> {
     } else {
       Alert.alert('Please fill out all fields. Remember to select a type and image!😄');
     }
-  };
-
-  uriToBase64: ((uripath: string) => Promise<empty>) = async uripath => {
-    const result = await ImageManipulator.manipulateAsync(uripath, [], {base64: true, compress: .4, format: ImageManipulator.SaveFormat.JPEG});
-    return result.base64;
   };
 
   selectImage: (() => Promise<void>) = async () => { //triggered by select image button on POI addition menu
@@ -259,6 +255,7 @@ export default class App extends Component<{}, any> {
   POIactivationHandler: ((poi_obj: PointOfInterest) => void) = poi_obj => {
     this.nullifyCommentMenu();
     this.nullifyImageMenu();
+    const obj = new PointOfInterest(poi_obj); 
     let viewAnim = new Animated.Value(-500);
     let accessibilityIndicatorLM = new Animated.Value(0); let skillLevelIndicatorLM = new Animated.Value(0);
     let securityIndicatorLM = new Animated.Value(0); let conditionIndicatorLM = new Animated.Value(0);
@@ -275,10 +272,10 @@ export default class App extends Component<{}, any> {
                       <View style={styles.gestureBar}/>
 
                       <View style={{paddingTop: 40}}>
-                        {createRatingBar(poi_obj['accessibility'], 'Accessibility:', accessibilityIndicatorLM, 10)}
-                        {createRatingBar(poi_obj['skillLevel'], 'Skill Level:', skillLevelIndicatorLM, 29)}
-                        {createRatingBar(poi_obj['condition'], 'Condition:', conditionIndicatorLM, 30)}
-                        {createRatingBar(poi_obj['security'], 'Security:', securityIndicatorLM, 39)}
+                        {createRatingBar(poi_obj.accessibility, 'Accessibility:', accessibilityIndicatorLM, 10)}
+                        {createRatingBar(poi_obj.skillLevel, 'Skill Level:', skillLevelIndicatorLM, 29)}
+                        {createRatingBar(poi_obj.condition, 'Condition:', conditionIndicatorLM, 30)}
+                        {createRatingBar(poi_obj.security, 'Security:', securityIndicatorLM, 39)}
 
                         <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 63}}>Type:             {poi_obj.type}</Text>
                         
@@ -294,11 +291,11 @@ export default class App extends Component<{}, any> {
 
                       <View style={{width: 150, height: 150, paddingTop: 50, paddingLeft: 10, flexWrap: 'wrap'}}>       
                           {createCurrentPOIAction(() => this.enableCurrentPOI_images(poi_obj), 50, 0, require('./src/components/viewPhotos.png'))}
-                          {createCurrentPOIAction(() => this.addPOIimage(poi_obj), 40, 5, require('./src/components/addPhoto.png'))}
+                          {createCurrentPOIAction(() => obj.addPOIimage(), 40, 5, require('./src/components/addPhoto.png'))}
                           {createCurrentPOIAction(() => this.enableCurrentPOI_comments(poi_obj), 50, 0, require('./src/components/viewComments.png'))}
                           {createCurrentPOIAction(() => this.addPOIcomment(poi_obj), 40, 5, require('./src/components/addComment.png'))}
-                          {createCurrentPOIAction(() => this.initiateNavigation(poi_obj), 50, 0, require('./src/components/navigationPin.png'))}
-                          {createCurrentPOIAction(() => this.sharePOIurl(poi_obj), 50, 0, require('./src/components/sharePOI.png'))}
+                          {createCurrentPOIAction(() => obj.initiateNavigation(this.state.regionState.latitude, this.state.regionState.longitude), 50, 0, require('./src/components/navigationPin.png'))}
+                          {createCurrentPOIAction(() => obj.sharePOIurl(), 50, 0, require('./src/components/sharePOI.png'))}
                       </View>
 
                       <TouchableOpacity onPress = {() => {this.nullifyCurrentPOI()}} style = {styles.POIexit_TO}>
@@ -309,10 +306,10 @@ export default class App extends Component<{}, any> {
     });
     Animated.spring(viewAnim, {useNativeDriver: false, friction: 5, tension: 4, toValue: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 10}).start();
     setTimeout(() => {
-      Animated.spring(accessibilityIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj['accessibility']}).start();
-      Animated.spring(conditionIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj['condition']}).start();
-      Animated.spring(skillLevelIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj['skillLevel']}).start();
-      Animated.spring(securityIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj['security']}).start();
+      Animated.spring(accessibilityIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj.accessibility}).start();
+      Animated.spring(conditionIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj.condition}).start();
+      Animated.spring(skillLevelIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj.skillLevel}).start();
+      Animated.spring(securityIndicatorLM, {useNativeDriver: false, friction: 2, tension: 4, toValue: 9 * poi_obj.security}).start();
     }, 300);
   };
 
@@ -370,31 +367,6 @@ export default class App extends Component<{}, any> {
                               </View>
                             </FlingGestureHandler>                       
     });
-  };
-
-  addPOIimage: ((poi_obj: PointOfInterest) => Promise<void>) = async poi_obj => {
-    let currentImages: PImage[] = poi_obj.images;
-    let imageTemp: PImage = {data: '', key: '', type: ''}; 
-    const { status } = await Permissions.askAsync(Permissions.CAMERA); 
-    console.log('cam perms', status);
-    if (status !== 'granted') {
-      Alert.alert('You need to allow camera permissions to take pictures of the cool skate spots you find!\n\nTo change this, visit the Settings app, find this app towards the bottom, and enable.'); return;
-    }
-
-    const addResult = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Image,
-      allowsEditing: true,
-      aspect: [1, 1], //require square crop
-      quality: .5,
-      videoMaxDuration: 30
-    });
-
-    if (!addResult.cancelled) {
-      imageTemp = {key: currentImages.length.toString(), data: await this.uriToBase64(addResult.uri), type: addResult.type}; //capture image and pend to push
-    }
-    currentImages.push(imageTemp); 
-
-    db.ref(`/poi/${poi_obj.id}`).update({images: currentImages});
   };
 
   enableCurrentPOI_comments: ((poi_obj: PointOfInterest) => void) = poi_obj => {
@@ -477,24 +449,6 @@ export default class App extends Component<{}, any> {
     currentComments.push({key: currentComments.length.toString(), text: this.state.ipComment})
     db.ref(`/poi/${poi_obj.id}`).update({comments: currentComments});
   }
-
-  initiateNavigation: ((poi_obj: PointOfInterest) => void) = poi_obj => {
-    showLocation({
-      latitude: poi_obj.regionState.latitude,
-      longitude: poi_obj.regionState.longitude,
-      sourceLatitude: this.state.regionState.latitude, 
-      sourceLongitude: this.state.regionState.longitude, 
-      alwaysIncludeGoogle: true, 
-      dialogTitle: 'Select an app to open this skate spot!',
-      dialogMessage: 'These are the compatible apps we found on your device.',
-      cancelText: 'No thanks, I don\'t want to hit this spot.'
-    });
-  };
-
-  sharePOIurl: ((poi_obj: PointOfInterest) => void) = poi_obj => {
-    Clipboard.setString(`maps.google.com/maps?q=${poi_obj.regionState.latitude},${poi_obj.regionState.longitude}`);
-    Alert.alert('Link copied to clipboard.');
-  };
 
   modifyRating: ((poi_obj: PointOfInterest) => void) = poi_obj => {
     this.nullifyCommentMenu();
