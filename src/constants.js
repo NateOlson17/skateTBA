@@ -62,6 +62,19 @@ export type FilterConstraint = {
     skillLevel_min: number
 };
 
+export type PointOfInterest = {
+    accessibility: number;
+    comments: PComment[];
+    condition: number;
+    id: string;
+    images: PImage[];
+    regionState: RegionState;
+    security: number;
+    skillLevel: number;
+    type: string;
+    numRatings: number;
+}
+
 export const uriToBase64: ((uripath: string) => Promise<empty>) = async uripath => {
     const result = await ImageManipulator.manipulateAsync(uripath, [], {base64: true, compress: .4, format: ImageManipulator.SaveFormat.JPEG});
     return result.base64;

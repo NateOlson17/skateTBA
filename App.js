@@ -18,9 +18,8 @@ import * as Font from 'expo-font';
 
 import fontelloConfig from './src/fonts/config.json';
 import { db } from './src/config';
-import { PointOfInterest } from './src/pointOfInterest.js';
 import { darkMapStyle, POS_COLOR, NEG_COLOR, NEUTRAL_COLOR, FRAME_WIDTH, FRAME_HEIGHT, PLUS_ICON_DIM, POI_MENU_DIM } from './src/constants';
-import type { PImage, PComment, FilterConstraint } from './src/constants';
+import type { PImage, PComment, FilterConstraint, PointOfInterest } from './src/constants';
 import { uriToBase64 } from './src/constants';
 import { createSlider, createRatingBar, createCurrentPOIAction, createRangeSlider, createCheckbox } from './src/componentCreation';
 import { styles } from './src/styles';
@@ -255,7 +254,6 @@ export default class App extends Component<{}, any> {
   POIactivationHandler: ((poi_obj: PointOfInterest) => void) = poi_obj => {
     this.nullifyCommentMenu();
     this.nullifyImageMenu();
-    const obj = new PointOfInterest(poi_obj); 
     let viewAnim = new Animated.Value(-500);
     let accessibilityIndicatorLM = new Animated.Value(0); let skillLevelIndicatorLM = new Animated.Value(0);
     let securityIndicatorLM = new Animated.Value(0); let conditionIndicatorLM = new Animated.Value(0);
@@ -291,11 +289,11 @@ export default class App extends Component<{}, any> {
 
                       <View style={{width: 150, height: 150, paddingTop: 50, paddingLeft: 10, flexWrap: 'wrap'}}>       
                           {createCurrentPOIAction(() => this.enableCurrentPOI_images(poi_obj), 50, 0, require('./src/components/viewPhotos.png'))}
-                          {createCurrentPOIAction(() => obj.addPOIimage(), 40, 5, require('./src/components/addPhoto.png'))}
+                          {createCurrentPOIAction(() => this.addPOIimage(poi_obj), 40, 5, require('./src/components/addPhoto.png'))}
                           {createCurrentPOIAction(() => this.enableCurrentPOI_comments(poi_obj), 50, 0, require('./src/components/viewComments.png'))}
                           {createCurrentPOIAction(() => this.addPOIcomment(poi_obj), 40, 5, require('./src/components/addComment.png'))}
-                          {createCurrentPOIAction(() => obj.initiateNavigation(this.state.regionState.latitude, this.state.regionState.longitude), 50, 0, require('./src/components/navigationPin.png'))}
-                          {createCurrentPOIAction(() => obj.sharePOIurl(), 50, 0, require('./src/components/sharePOI.png'))}
+                          {createCurrentPOIAction(() => this.initiateNavigation(poi_obj), 50, 0, require('./src/components/navigationPin.png'))}
+                          {createCurrentPOIAction(() => this.sharePOIurl(poi_obj), 50, 0, require('./src/components/sharePOI.png'))}
                       </View>
 
                       <TouchableOpacity onPress = {() => {this.nullifyCurrentPOI()}} style = {styles.POIexit_TO}>
@@ -352,6 +350,49 @@ export default class App extends Component<{}, any> {
                           </FlingGestureHandler>
     });
     Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: 0}).start(); //animate menu slide-in
+  };
+
+  sharePOIurl(poi_obj: PointOfInterest) {
+    Clipboard.setString(`maps.google.com/maps?q=${poi_obj.regionState.latitude},${poi_obj.regionState.longitude}`);
+    Alert.alert('Link copied to clipboard.');
+  };
+
+  initiateNavigation(poi_obj: PointOfInterest) {
+    showLocation({
+        latitude: poi_obj.regionState.latitude,
+        longitude: poi_obj.regionState.longitude,
+        sourceLatitude: this.state.regionState.latitude, 
+        sourceLongitude: this.state.regionState.longitude, 
+        alwaysIncludeGoogle: true, 
+        dialogTitle: 'Select an app to open this skate spot!',
+        dialogMessage: 'These are the compatible apps we found on your device.',
+        cancelText: 'No thanks, I don\'t want to hit this spot.'
+    });
+  };
+
+    async addPOIimage(poi_obj: PointOfInterest) {
+      let currentImages: PImage[] = poi_obj.images;
+      let imageTemp: PImage = {data: '', key: '', type: ''}; 
+      const { status } = await Permissions.askAsync(Permissions.CAMERA); 
+      console.log('cam perms', status);
+      if (status !== 'granted') {
+          Alert.alert('You need to allow camera permissions to take pictures of the cool skate spots you find!\n\nTo change this, visit the Settings app, find this app towards the bottom, and enable.'); return;
+      }
+
+      const addResult = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Image,
+      allowsEditing: true,
+      aspect: [1, 1], //require square crop
+      quality: .5,
+      videoMaxDuration: 30
+      });
+
+      if (!addResult.cancelled) {
+      imageTemp = {key: currentImages.length.toString(), data: await uriToBase64(addResult.uri), type: addResult.type}; //capture image and pend to push
+      }
+      currentImages.push(imageTemp); 
+
+      db.ref(`/poi/${poi_obj.id}`).update({images: currentImages});
   };
 
   displayFullsizeImage: ((img: PImage) => void) = img => {//display fullscreen image with swipe-down handler (no animation)
