@@ -90,6 +90,8 @@ export default class App extends Component<{}, any> {
     };
   }
 
+ 
+
 
   /////////////////////////////////////////////////LOCATION AND MOUNT TASKS///////////////////////////////////////////////////////////////////////
   location: any
@@ -254,8 +256,8 @@ export default class App extends Component<{}, any> {
 
   POIactivationHandler: ((poi_obj: PointOfInterest) => void) = poi_obj => {
     this.nullifyCommentMenu();
-    this.nullifyImageMenu();
-    const obj = new PointOfInterest(poi_obj); 
+    this.nullifyImageMenu(); 
+    const obj = new PointOfInterest(poi_obj, this);
     let viewAnim = new Animated.Value(-500);
     let accessibilityIndicatorLM = new Animated.Value(0); let skillLevelIndicatorLM = new Animated.Value(0);
     let securityIndicatorLM = new Animated.Value(0); let conditionIndicatorLM = new Animated.Value(0);
@@ -290,11 +292,11 @@ export default class App extends Component<{}, any> {
                       </View>
 
                       <View style={{width: 150, height: 150, paddingTop: 50, paddingLeft: 10, flexWrap: 'wrap'}}>       
-                          {createCurrentPOIAction(() => this.enableCurrentPOI_images(poi_obj), 50, 0, require('./src/components/viewPhotos.png'))}
+                          {createCurrentPOIAction(() => obj.enableCurrentPOI_images(), 50, 0, require('./src/components/viewPhotos.png'))}
                           {createCurrentPOIAction(() => obj.addPOIimage(), 40, 5, require('./src/components/addPhoto.png'))}
-                          {createCurrentPOIAction(() => this.enableCurrentPOI_comments(poi_obj), 50, 0, require('./src/components/viewComments.png'))}
-                          {createCurrentPOIAction(() => this.addPOIcomment(poi_obj), 40, 5, require('./src/components/addComment.png'))}
-                          {createCurrentPOIAction(() => obj.initiateNavigation(this.state.regionState.latitude, this.state.regionState.longitude), 50, 0, require('./src/components/navigationPin.png'))}
+                          {createCurrentPOIAction(() => obj.enableCurrentPOI_comments(), 50, 0, require('./src/components/viewComments.png'))}
+                          {createCurrentPOIAction(() => obj.addPOIcomment(), 40, 5, require('./src/components/addComment.png'))}
+                          {createCurrentPOIAction(() => obj.initiateNavigation(), 50, 0, require('./src/components/navigationPin.png'))}
                           {createCurrentPOIAction(() => obj.sharePOIurl(), 50, 0, require('./src/components/sharePOI.png'))}
                       </View>
 
@@ -313,47 +315,6 @@ export default class App extends Component<{}, any> {
     }, 300);
   };
 
-  enableCurrentPOI_images: ((poi_obj: PointOfInterest) => void) = poi_obj => {
-    this.nullifyCommentMenu();
-    this.nullifyFilterMenu();
-    this.nullifySecondaryRatingPanel();
-
-    let animVal = new Animated.Value(2 * FRAME_HEIGHT);
-    this.setState({
-      currentPOI_images:  <FlingGestureHandler
-                            direction = {Directions.DOWN}
-                            onHandlerStateChange={({ nativeEvent }) => {
-                              if (nativeEvent.state === State.ACTIVE) {
-                                Animated.timing(animVal, {useNativeDriver: false, toValue: 2 * FRAME_HEIGHT}).start();
-                                  setTimeout(() => {this.setState({currentPOI_images: null});}, 100);
-                              }
-                          }}>
-                            <Animated.View style = {[styles.POIimagesWrapper, {top: animVal}]}>
-                              <View style = {styles.POIdisplayAdditionalMenu_ContentWrapper}>
-                                <View style={styles.gestureBar}/>
-
-                                <FlatList
-                                  style = {{paddingLeft: 20}}
-                                  data = {poi_obj.images}
-                                  renderItem = {({ item }) => ( 
-                                                                <TouchableOpacity onPress = {() => {this.displayFullsizeImage(item)}}>
-                                                                  <Image source = {{uri: `data:image/jpeg;base64,${item.data}`}} style = {styles.FlatListPerImg}/>
-                                                                </TouchableOpacity> 
-                                                              )}
-                                  horizontal = {true}
-                                  initialNumToRender = {5}
-                                />
-
-                                <TouchableOpacity onPress = {() => {this.nullifyImageMenu()}} style = {styles.POIexit_TO}>
-                                  <Image source = {require('./src/components/pointDisplay_x.png')} style = {styles.POIexit_generic}/>
-                                </TouchableOpacity>
-                              </View>
-                            </Animated.View>
-                          </FlingGestureHandler>
-    });
-    Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: 0}).start(); //animate menu slide-in
-  };
-
   displayFullsizeImage: ((img: PImage) => void) = img => {//display fullscreen image with swipe-down handler (no animation)
     this.setState({fullImg: <FlingGestureHandler
                               direction = {Directions.DOWN}
@@ -366,79 +327,6 @@ export default class App extends Component<{}, any> {
                                 <Image source = {{uri: `data:image/jpeg;base64,${img.data}`}} style = {{height: FRAME_WIDTH, width: FRAME_WIDTH, resizeMode: 'contain'}}/>
                               </View>
                             </FlingGestureHandler>                       
-    });
-  };
-
-  enableCurrentPOI_comments: ((poi_obj: PointOfInterest) => void) = poi_obj => {
-    this.nullifyImageMenu();
-    this.nullifyFilterMenu();
-    this.nullifySecondaryRatingPanel();
-
-    let animVal = new Animated.Value(2 * FRAME_HEIGHT);
-    this.setState({
-      currentPOI_comments:  <FlingGestureHandler
-                              direction = {Directions.DOWN}
-                              onHandlerStateChange={({ nativeEvent }) => {
-                                if (nativeEvent.state === State.ACTIVE) {
-                                  Animated.timing(animVal, {useNativeDriver: false, toValue: 2 * FRAME_HEIGHT}).start(); //swipe-down animation
-                                  setTimeout(() => {this.setState({currentPOI_comments: null});}, 100);
-                                }
-                            }}>
-                              <Animated.View style = {[styles.POIcommentsWrapper, {top: animVal}]}>
-                                <View style = {styles.POIdisplayAdditionalMenu_ContentWrapper}>
-                                  <View style={styles.gestureBar}/>
-
-                                  {
-                                  poi_obj.comments ?
-                                    <FlatList
-                                      style = {{paddingLeft: 20, zIndex: 6, marginTop: 40}}
-                                      data = {poi_obj.comments}
-                                      renderItem = {({ item }) => (<Text style = {{width: 200, height: 180}} allowFontScaling = {false}>{item.text}</Text>)}
-                                      horizontal = {true}
-                                      initialNumToRender = {5}
-                                    />
-                                  :
-                                    <Text allowFontScaling = {false} style = {{alignSelf: 'center'}}>NO COMMENTS</Text>
-                                  }
-
-                                  <TouchableOpacity onPress = {() => {this.nullifyCommentMenu()}} style = {styles.POIexit_TO}>
-                                    <Image source = {require('./src/components/pointDisplay_x.png')} style = {styles.POIexit_generic}/>
-                                  </TouchableOpacity>
-                                </View>
-                              </Animated.View>
-                            </FlingGestureHandler>
-    });
-    Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: 0}).start(); //appearance animation
-  };
-
-  addPOIcomment: ((poi_obj: PointOfInterest) => void) = poi_obj => {
-    this.nullifyCurrentPOI();
-    this.nullifyFilterMenu();
-    this.nullifySecondaryRatingPanel();
-
-    this.setState({
-      ipComment: '',
-      commentInterface: <View style = {{position: 'absolute', height: FRAME_HEIGHT, width: FRAME_WIDTH, backgroundColor: 'rgba(255, 255, 255, 0.8)'}}>
-                          <TouchableOpacity onPress = {() => {this.setState({commentInterface: null});}} style = {[styles.commentActionButtons, {right: 50}]}>
-                            <Image source = {require('./src/components/pointDisplay_x.png')} style = {styles.POIexit_generic}/>
-                          </TouchableOpacity>
-
-                          {/*$FlowIgnore flow assumes textAlign is invalid prop*/}
-                          <TextInput style = {{position: 'absolute', left: FRAME_WIDTH / 2 - 50, bottom: FRAME_HEIGHT / 4, width: 100, height: 300}}
-                              allowFontScaling = {false}
-                              placeholder = 'Say something about this spot!'
-                              placeholderTextColor = {POS_COLOR}
-                              maxLength = {100}
-                              clearButtonMode = 'while-editing'
-                              multiline
-                              textAlign = 'center'
-                              onChangeText = {(text) => this.setState({ipComment: text})}
-                            />
-
-                          <TouchableOpacity onPress = {() => {this.POIcommentSubmissionHandler(poi_obj)}} style = {[styles.commentActionButtons, {right: 80}]}>
-                            <Image source = {require('./src/components/submitComment.png')} style = {styles.POIexit_generic}/>
-                          </TouchableOpacity>
-                        </View>
     });
   };
 
