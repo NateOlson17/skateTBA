@@ -32,7 +32,15 @@ export const styles = StyleSheet.create({
         top: 20,
         right: 20, 
         width: FRAME_WIDTH * .07, 
-        zIndex: 5
+        zIndex: 5,
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 5,
+        },
+        shadowOpacity: 0.35,
+        shadowRadius: 5,
+        elevation: 8
     },
 
     POIdisplayAdditionalMenu_ContentWrapper: {
@@ -104,7 +112,7 @@ export const styles = StyleSheet.create({
 
     currentPOIWrapper: {
         position: 'absolute',
-        height: 200,
+        height: 210,
         width: FRAME_WIDTH,
         flexDirection: 'row',
         backgroundColor: 'white',
@@ -240,11 +248,29 @@ export const styles = StyleSheet.create({
        backgroundColor: 'white', 
        borderRadius: 40, 
        width: POI_MENU_DIM, 
-       height: 300, 
+       height: 375, 
        position: 'absolute', 
        left: (FRAME_WIDTH - POI_MENU_DIM)/2,
-       bottom: FRAME_HEIGHT * .04 + PLUS_ICON_DIM + 210,
        flexDirection: 'row',
-       flexWrap: 'wrap'
+       flexWrap: 'wrap',
+       shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 7,
+        },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        elevation: 15
+    },
+
+    rateSpotButton: {
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 7,
+        },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 15
     }
 });

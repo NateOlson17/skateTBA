@@ -288,14 +288,16 @@ export default class App extends Component<{}, any> {
                             {createCurrentPOIAction(() => this.initiateNavigation(poi_obj), 50, 0, require('./src/components/navigationPin.png'))}
                             {createCurrentPOIAction(() => this.sharePOIurl(poi_obj), 50, 0, require('./src/components/sharePOI.png'))}
                         </View>
+
                         <View style={{flexDirection: 'column'}}>
                             <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 27}}>{poi_obj.numRatings} Rating{poi_obj.numRatings > 1 ? 's' : ''}</Text>
-                            <TouchableOpacity onPress = {() => {this.modifyRating(poi_obj)}}>
+                            <TouchableOpacity style={styles.rateSpotButton} onPress = {() => {this.modifyRating(poi_obj)}}>
                               <View style={{backgroundColor: POS_COLOR, borderRadius: 14, width: 120}}>
-                                <Text allowFontScaling = {false} style = {{fontWeight: 'bold', padding: 5}}>Rate this spot!</Text>
+                                <Text allowFontScaling = {false} style = {{fontWeight: 'bold', padding: 7}}>Rate this spot!</Text>
                               </View>
                             </TouchableOpacity>
                         </View>
+
                       </View>
 
                       <TouchableOpacity onPress = {() => {this.nullifyCurrentPOI()}} style = {styles.POIexit_TO}>
@@ -351,7 +353,7 @@ export default class App extends Component<{}, any> {
                             </Animated.View>
                           </FlingGestureHandler>
     });
-    Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: 0}).start(); //animate menu slide-in
+    Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: -10}).start(); //animate menu slide-in
   };
 
   sharePOIurl(poi_obj: PointOfInterest) {
@@ -451,7 +453,7 @@ export default class App extends Component<{}, any> {
                               </Animated.View>
                             </FlingGestureHandler>
     });
-    Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: 0}).start(); //appearance animation
+    Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: -10}).start(); //appearance animation
   };
 
   addPOIcomment: ((poi_obj: PointOfInterest) => void) = poi_obj => {
@@ -500,25 +502,28 @@ export default class App extends Component<{}, any> {
 
     let newConditionRating: number; let newAccessibilityRating: number; let newSkillLevelRating: number; let newSecurityRating: number;
 
+    let animVal = new Animated.Value(2 * FRAME_HEIGHT);
     this.setState({
-      secondaryRatingPanel: <View style = {styles.secondaryRatingPanel}>
-                                  <TouchableOpacity onPress = {() => {this.nullifySecondaryRatingPanel()}} style = {styles.POIexit_TO}>
-                                    <Image source = {require('./src/components/pointDisplay_x.png')} style = {styles.POIexit_generic}/>
-                                  </TouchableOpacity>
-
-                                  {createSlider(value => {newConditionRating = value}, 'Condition')}
-                                  {createSlider(value => {newAccessibilityRating = value}, 'Accessibility')}
-                                  {createSlider(value => {newSkillLevelRating = value}, 'Skill Level')}
-                                  {createSlider(value => {newSecurityRating = value}, 'Security')}
-
-                                <TouchableOpacity onPress = {() => {this.nullifySecondaryRatingPanel(); this.calculateNewRating(poi_obj, newConditionRating, newAccessibilityRating, newSkillLevelRating, newSecurityRating);}}>
-                                  <Image
-                                    source = {require('./src/components/submitPOI.png')}
-                                    style = {{width: POI_MENU_DIM * .2, height: POI_MENU_DIM * .2, resizeMode: 'contain', paddingLeft: POI_MENU_DIM}}
-                                  />
+      secondaryRatingPanel: <Animated.View style = {[styles.secondaryRatingPanel, {top: animVal}]}>
+                                <TouchableOpacity onPress = {() => {this.nullifySecondaryRatingPanel()}} style = {styles.POIexit_TO}>
+                                  <Image source = {require('./src/components/pointDisplay_x.png')} style = {styles.POIexit_generic}/>
                                 </TouchableOpacity>
-                              </View>
-    })
+
+                                <View style={{width: POI_MENU_DIM, height: 5, padding: 25}}></View>
+                                {createSlider(value => {newConditionRating = value}, 'Condition')}
+                                {createSlider(value => {newAccessibilityRating = value}, 'Accessibility')}
+                                {createSlider(value => {newSkillLevelRating = value}, 'Skill Level')}
+                                {createSlider(value => {newSecurityRating = value}, 'Security')}
+
+								<TouchableOpacity onPress = {() => {this.nullifySecondaryRatingPanel(); this.calculateNewRating(poi_obj, newConditionRating, newAccessibilityRating, newSkillLevelRating, newSecurityRating);}}>
+									<Image
+									source = {require('./src/components/submitPOI.png')}
+									style = {{width: POI_MENU_DIM * .2, height: POI_MENU_DIM * .2, resizeMode: 'contain', paddingLeft: POI_MENU_DIM}}
+									/>
+								</TouchableOpacity>
+                            </Animated.View>
+    });
+	Animated.spring(animVal, {useNativeDriver: false, friction: 5, tension: 4, toValue: FRAME_HEIGHT *.96 - PLUS_ICON_DIM - 595,}).start(); //appearance animation
   }
 
   calculateNewRating: any = (poi_obj: PointOfInterest, newCond: number, newAcc: number, newSkill: number, newSec: number) => {
