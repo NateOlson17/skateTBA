@@ -83,7 +83,15 @@ export const styles = StyleSheet.create({
         width: POI_MENU_DIM,
         height: 452,
         flexDirection: 'row', 
-        flexWrap: 'wrap'
+        flexWrap: 'wrap',
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 7,
+        },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        elevation: 15
     },
 
     POIAdditionBG: {
@@ -100,20 +108,44 @@ export const styles = StyleSheet.create({
         width: FRAME_WIDTH,
         flexDirection: 'row',
         backgroundColor: 'white',
-        borderRadius: 40
+        borderRadius: 40,
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 7,
+        },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        elevation: 15
     },
 
     POIimagesWrapper: {
         position: 'absolute',
         width: FRAME_WIDTH,
         height: FRAME_HEIGHT,
-        zIndex: 0
+        zIndex: 0,
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 7,
+        },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        elevation: 15
     },
 
     POIcommentsWrapper: {
         position: 'absolute',
         width: FRAME_WIDTH,
-        height: FRAME_HEIGHT
+        height: FRAME_HEIGHT,
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 7,
+        },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        elevation: 15
     },
 
     bugReportImg: {
@@ -148,7 +180,15 @@ export const styles = StyleSheet.create({
         width: FRAME_WIDTH, 
         position: 'absolute', 
         flexDirection: 'row', 
-        flexWrap: 'wrap' 
+        flexWrap: 'wrap',
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 7,
+        },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        elevation: 15
     },
 
     rangeSliderWrap: {
@@ -177,7 +217,15 @@ export const styles = StyleSheet.create({
         left: (FRAME_WIDTH - POI_MENU_DIM)/2 + 160, 
         height: 31, 
         width: 150, 
-        borderRadius: 20
+        borderRadius: 20,
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 7,
+        },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 15
     },
 
    showFiltersButton: {

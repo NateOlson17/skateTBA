@@ -24,6 +24,7 @@ import { uriToBase64 } from './src/constants';
 import { createSlider, createRatingBar, createCurrentPOIAction, createRangeSlider, createCheckbox } from './src/componentCreation';
 import { styles } from './src/styles';
 
+//create react <Components /> for panels/displays
 //settings/info
 //cache images?
 //prompt for rating when leaving area
@@ -276,24 +277,25 @@ export default class App extends Component<{}, any> {
                         {createRatingBar(poi_obj.security, 'Security:', securityIndicatorLM, 39)}
 
                         <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 63}}>Type:             {poi_obj.type}</Text>
-                        
-                        <View style={{flexDirection: 'row'}}>
-                          <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 63}}>{poi_obj.numRatings} Rating{poi_obj.numRatings > 1 ? 's' : ''}</Text>
-                          <TouchableOpacity onPress = {() => {this.modifyRating(poi_obj)}}>
-                            <View style={{backgroundColor: POS_COLOR, borderRadius: 10, width: 120, paddingLeft: 5}}>
-                              <Text allowFontScaling = {false} style = {{fontWeight: 'bold'}}>Rate this spot!</Text>
-                            </View>
-                          </TouchableOpacity>
-                        </View>
                       </View>
 
-                      <View style={{width: 150, height: 150, paddingTop: 50, paddingLeft: 10, flexWrap: 'wrap'}}>       
-                          {createCurrentPOIAction(() => this.enableCurrentPOI_images(poi_obj), 50, 0, require('./src/components/viewPhotos.png'))}
-                          {createCurrentPOIAction(() => this.addPOIimage(poi_obj), 40, 5, require('./src/components/addPhoto.png'))}
-                          {createCurrentPOIAction(() => this.enableCurrentPOI_comments(poi_obj), 50, 0, require('./src/components/viewComments.png'))}
-                          {createCurrentPOIAction(() => this.addPOIcomment(poi_obj), 40, 5, require('./src/components/addComment.png'))}
-                          {createCurrentPOIAction(() => this.initiateNavigation(poi_obj), 50, 0, require('./src/components/navigationPin.png'))}
-                          {createCurrentPOIAction(() => this.sharePOIurl(poi_obj), 50, 0, require('./src/components/sharePOI.png'))}
+                      <View style={{flexDirection: 'column'}}>
+                        <View style={{width: 150, height: 150, paddingTop: 50, paddingLeft: 10, flexWrap: 'wrap'}}>       
+                            {createCurrentPOIAction(() => this.enableCurrentPOI_images(poi_obj), 50, 0, require('./src/components/viewPhotos.png'))}
+                            {createCurrentPOIAction(() => this.addPOIimage(poi_obj), 40, 5, require('./src/components/addPhoto.png'))}
+                            {createCurrentPOIAction(() => this.enableCurrentPOI_comments(poi_obj), 50, 0, require('./src/components/viewComments.png'))}
+                            {createCurrentPOIAction(() => this.addPOIcomment(poi_obj), 40, 5, require('./src/components/addComment.png'))}
+                            {createCurrentPOIAction(() => this.initiateNavigation(poi_obj), 50, 0, require('./src/components/navigationPin.png'))}
+                            {createCurrentPOIAction(() => this.sharePOIurl(poi_obj), 50, 0, require('./src/components/sharePOI.png'))}
+                        </View>
+                        <View style={{flexDirection: 'column'}}>
+                            <Text allowFontScaling = {false} style = {{fontWeight: 'bold', paddingLeft: 27}}>{poi_obj.numRatings} Rating{poi_obj.numRatings > 1 ? 's' : ''}</Text>
+                            <TouchableOpacity onPress = {() => {this.modifyRating(poi_obj)}}>
+                              <View style={{backgroundColor: POS_COLOR, borderRadius: 14, width: 120}}>
+                                <Text allowFontScaling = {false} style = {{fontWeight: 'bold', padding: 5}}>Rate this spot!</Text>
+                              </View>
+                            </TouchableOpacity>
+                        </View>
                       </View>
 
                       <TouchableOpacity onPress = {() => {this.nullifyCurrentPOI()}} style = {styles.POIexit_TO}>
