@@ -19,10 +19,19 @@ import * as Font from 'expo-font';
 import fontelloConfig from './src/fonts/config.json';
 import { db } from './src/config';
 import { darkMapStyle, POS_COLOR, NEG_COLOR, NEUTRAL_COLOR, FRAME_WIDTH, FRAME_HEIGHT, PLUS_ICON_DIM, POI_MENU_DIM } from './src/constants';
-import type { PImage, PComment, FilterConstraint, PointOfInterest } from './src/constants';
+import type { PImage, PComment, FilterConstraint, PointOfInterest, User } from './src/constants';
 import { uriToBase64 } from './src/constants';
 import { createSlider, createRatingBar, createCurrentPOIAction, createRangeSlider, createCheckbox } from './src/componentCreation';
 import { styles } from './src/styles';
+
+
+//LOGIN SYSTEM (on settings page)
+//-first create object for logged in user info
+//-incorporate login page (username/pwd) and update object
+//-disable certain features if object is null
+
+//allow users to bookmark spots
+//king of the spot
 
 //create react <Components /> for panels/displays
 //settings/info
@@ -85,8 +94,10 @@ export default class App extends Component<{}, any> {
         condition_min: 0, condition_max: 10, security_min: 0, security_max: 10, 
         skillLevel_min: 0, skillLevel_max: 10, accessibility_min: 0, accessibility_max: 10
       },
-      validTypes: { Ramp: true, Rail: true, Ledge: true, Gap: true }
+      validTypes: { Ramp: true, Rail: true, Ledge: true, Gap: true },
 
+	  currentUser: null,
+	  loginPage: null
     };
   }
 
@@ -598,6 +609,18 @@ export default class App extends Component<{}, any> {
   };
 
 
+
+
+
+  accountButtonHandler: (() => void) = () => {
+	  this.setState({
+		  loginPage: 	<View style={{height: FRAME_HEIGHT, width: FRAME_WIDTH, backgroundColor: 'white', position: 'absolute', zIndex: 2}}>
+
+		  				</View>
+	  });
+  }
+
+
   /////////////////////////////////////////////////////////////////////MAIN RENDER///////////////////////////////////////////////////////////////
   render(): any {
     Platform.OS === 'ios' && Constants.statusBarHeight > 40 ? //check if iOS phone has 'notch', set dark/light mode to status bar icons if true
@@ -621,6 +644,12 @@ export default class App extends Component<{}, any> {
               >
                 Give a Suggestion{'\n'}Report a bug
               </Text>
+          </TouchableOpacity>
+        </View>
+
+		<View style = {{position: 'absolute', left: FRAME_WIDTH - 90, top: 10, zIndex: 1}}>
+          <TouchableOpacity onPress = {this.accountButtonHandler} style = {[FRAME_HEIGHT <= 667 ? {flexDirection: 'row', paddingRight: 30} : null, {position: 'absolute', top: 40, zIndex: 1}]}> 
+            <Image style = {styles.bugReportImg} source = {this.state.darkModeEnabled ? require('./src/components/account_DM.png') : require('./src/components/account.png')}/>
           </TouchableOpacity>
         </View>
 
@@ -746,6 +775,7 @@ export default class App extends Component<{}, any> {
 
         {this.state.commentInterface}
         {this.state.fullImg}
+		{this.state.loginPage}
 
       </View>
     );

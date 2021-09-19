@@ -75,6 +75,12 @@ export type PointOfInterest = {
     numRatings: number;
 }
 
+export type User = {
+    username: string;
+    password: string;
+    email: string;
+}
+
 export const uriToBase64: ((uripath: string) => Promise<empty>) = async uripath => {
     const result = await ImageManipulator.manipulateAsync(uripath, [], {base64: true, compress: .4, format: ImageManipulator.SaveFormat.JPEG});
     return result.base64;
