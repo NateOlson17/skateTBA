@@ -37,13 +37,15 @@ export const POI_MENU_DIM = 338;
 
 export type PComment = {
     key: string,
-    text: string
+    text: string,
+    user: string
 };
 
 export type PImage = {
     data: string,
     key: string,
-    type: string
+    type: string,
+    user: string
 };
 
 export type RegionState = {

@@ -60,8 +60,7 @@ export const styles = StyleSheet.create({
         width: 140, 
         resizeMode: 'contain', 
         alignSelf: 'center', 
-        marginRight: 15, 
-        marginTop: 30
+        marginRight: 15
     },
 
     fullScreenImgView: {

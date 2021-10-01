@@ -218,6 +218,7 @@ export default class App extends Component<{}, any> {
   initBugReport: (() => void) = () => {text('17085574833', 'Bug Report or Suggestion:\n');}
 
   pushPOIdata: (() => Promise<void>) = async () => {
+    if (!this.state.currentUser.username) {Alert.alert("You must be signed in to perform this action."); return;}
     if (this.state.pendingPOI_type && this.state.regionState && this.state.pendingPOI_image) {
       console.log('pushing to RTDB');
       db.ref('/poi').push({ //push POI data to directory
@@ -227,7 +228,7 @@ export default class App extends Component<{}, any> {
         condition: this.state.pendingPOI_condition,
         security: this.state.pendingPOI_security,
         regionState: {latitude: this.state.regionState.latitude, longitude: this.state.regionState.longitude},
-        images: [{key: '0', data: await uriToBase64(this.state.pendingPOI_image.uri), type: this.state.pendingPOI_image.type}],//await promise response from helper func, then push base64 return value
+        images: [{key: '0', data: await uriToBase64(this.state.pendingPOI_image.uri), type: this.state.pendingPOI_image.type, user: this.state.currentUser.username}],//await promise response from helper func, then push base64 return value
         numRatings: 1
       });
       this.setState({displayPOImenu: false, addPOImenu: null});
@@ -352,6 +353,7 @@ export default class App extends Component<{}, any> {
                                   data = {poi_obj.images}
                                   renderItem = {({ item }) => ( 
                                                                 <TouchableOpacity onPress = {() => {this.displayFullsizeImage(item)}}>
+                                                                <Text style = {{marginTop: 30, fontWeight: 'bold'}}>{item.user}</Text>
                                                                   <Image source = {{uri: `data:image/jpeg;base64,${item.data}`}} style = {styles.FlatListPerImg}/>
                                                                 </TouchableOpacity> 
                                                               )}
@@ -390,7 +392,7 @@ export default class App extends Component<{}, any> {
     async addPOIimage(poi_obj: PointOfInterest) {
       if (!this.state.currentUser.username) {Alert.alert("You must be signed in to perform this action."); return;}
       let currentImages: PImage[] = poi_obj.images;
-      let imageTemp: PImage = {data: '', key: '', type: ''}; 
+      let imageTemp: PImage = {data: '', key: '', type: '', user: ''}; 
       const { status } = await Permissions.askAsync(Permissions.CAMERA); 
       console.log('cam perms', status);
       if (status !== 'granted') {
@@ -406,7 +408,7 @@ export default class App extends Component<{}, any> {
       });
 
       if (!addResult.cancelled) {
-      imageTemp = {key: currentImages.length.toString(), data: await uriToBase64(addResult.uri), type: addResult.type}; //capture image and pend to push
+      imageTemp = {key: currentImages.length.toString(), data: await uriToBase64(addResult.uri), type: addResult.type, user: this.state.currentUser.username}; //capture image and pend to push
       }
       currentImages.push(imageTemp); 
 
@@ -452,7 +454,7 @@ export default class App extends Component<{}, any> {
                                     <FlatList
                                       style = {{paddingLeft: 20, zIndex: 6, marginTop: 40}}
                                       data = {poi_obj.comments}
-                                      renderItem = {({ item }) => (<Text style = {{width: 200, height: 180}} allowFontScaling = {false}>{item.text}</Text>)}
+                                      renderItem = {({ item }) => (<Text style = {{width: 200, height: 180}} allowFontScaling = {false}><Text style = {{fontWeight: 'bold'}}>{item.user}: </Text>{item.text}</Text>)}
                                       horizontal = {true}
                                       initialNumToRender = {5}
                                     />
@@ -506,7 +508,7 @@ export default class App extends Component<{}, any> {
     if (!this.state.ipComment) {return;}
     this.setState({commentInterface: null});
     let currentComments: PComment[] = poi_obj.comments ? poi_obj.comments : [];
-    currentComments.push({key: currentComments.length.toString(), text: this.state.ipComment})
+    currentComments.push({key: currentComments.length.toString(), text: this.state.ipComment, user: this.state.currentUser.username})
     db.ref(`/poi/${poi_obj.id}`).update({comments: currentComments});
   }
 
@@ -695,18 +697,32 @@ export default class App extends Component<{}, any> {
                           placeholder = "Username"
                           placeholderTextColor = {POS_COLOR}
                           autoCapitalize = "none"
+                          allowFontScaling = {false}
+                          autoCorrect = {false}
+                          maxLength = {20}
+                          textContentType='username'
                           onChangeText = {(txt) => {this.state.tempUser.un = txt;}}
                         />
                         <TextInput
                           placeholder = "Password"
                           placeholderTextColor = {POS_COLOR}
                           autoCapitalize = "none"
+                          allowFontScaling = {false}
+                          autoCorrect = {false}
+                          maxLength = {20}
+                          secureTextEntry = {true}
+                          textContentType='newPassword'
                           onChangeText = {(txt) => {this.state.tempUser.pw1 = txt;}}
                         />
                         <TextInput
                           placeholder = "Confirm Password"
                           placeholderTextColor = {POS_COLOR}
                           autoCapitalize = "none"
+                          allowFontScaling = {false}
+                          autoCorrect = {false}
+                          maxLength = {20}
+                          secureTextEntry = {true}
+                          textContentType='newPassword'
                           onChangeText = {(txt) => {this.state.tempUser.pw2 = txt;}}
                         />
                         <TouchableOpacity onPress={this.verifysignup}><Text>SIGN UP</Text></TouchableOpacity>
@@ -717,12 +733,21 @@ export default class App extends Component<{}, any> {
                           placeholder = "Username"
                           placeholderTextColor = {POS_COLOR}
                           autoCapitalize = "none"
+                          autoCorrect = {false}
+                          allowFontScaling = {false}
+                          maxLength = {20}
+                          textContentType='username'
                           onChangeText = {(txt) => {this.state.tempLogin.un = txt;}}
                         />
                         <TextInput
                           placeholder = "Password"
                           placeholderTextColor = {POS_COLOR}
                           autoCapitalize = "none"
+                          autoCorrect = {false}
+                          allowFontScaling = {false}
+                          maxLength = {20}
+                          secureTextEntry = {true}
+                          textContentType='password'
                           onChangeText = {(txt) => {this.state.tempLogin.pw = txt;}}
                         />
                         <TouchableOpacity onPress={this.verifylogin}><Text>LOG IN</Text></TouchableOpacity>
