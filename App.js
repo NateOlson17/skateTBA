@@ -96,8 +96,10 @@ export default class App extends Component<{}, any> {
       },
       validTypes: { Ramp: true, Rail: true, Ledge: true, Gap: true },
 
-	  currentUser: null,
-	  loginPage: null
+	  currentUser: {username: null, password: null},
+	  loginPage: null,
+    tempUser: {un: "", pw1: "", pw2: ""},
+    tempLogin: {un: null, pw: null}
     };
   }
 
@@ -386,6 +388,7 @@ export default class App extends Component<{}, any> {
   };
 
     async addPOIimage(poi_obj: PointOfInterest) {
+      if (!this.state.currentUser.username) {Alert.alert("You must be signed in to perform this action."); return;}
       let currentImages: PImage[] = poi_obj.images;
       let imageTemp: PImage = {data: '', key: '', type: ''}; 
       const { status } = await Permissions.askAsync(Permissions.CAMERA); 
@@ -468,6 +471,7 @@ export default class App extends Component<{}, any> {
   };
 
   addPOIcomment: ((poi_obj: PointOfInterest) => void) = poi_obj => {
+    if (!this.state.currentUser.username) {Alert.alert("You must be signed in to perform this action."); return;}
     this.nullifyCurrentPOI();
     this.nullifyFilterMenu();
     this.nullifySecondaryRatingPanel();
@@ -507,6 +511,7 @@ export default class App extends Component<{}, any> {
   }
 
   modifyRating: ((poi_obj: PointOfInterest) => void) = poi_obj => {
+    if (!this.state.currentUser.username) {Alert.alert("You must be signed in to perform this action."); return;}
     this.nullifyCommentMenu();
     this.nullifyFilterMenu();
     this.nullifyImageMenu();
@@ -609,15 +614,122 @@ export default class App extends Component<{}, any> {
   };
 
 
+  verifylogin: (() => void) = () => {
+    let unExists = false;
+    let pwMatch = false;
+    let user = this.state.tempLogin;
+    db.ref('/users').on('value', (snapshot) => {
+      let allUsers = snapshot.val();
+      //$FlowIssue[incompatible-use] flow assumes markersTemp[key] is incorrectly typed key accessing index of markersTemp[]
+      allUsers = Object.keys(allUsers).map((key) => allUsers[key]); //map object string identifiers assigned by Firebase to object info
+      for (let i = 0; i < allUsers.length; ++i) {
+        if (allUsers[i].username == user.un) {
+          unExists = true;
+          if (allUsers[i].password == user.pw) {pwMatch = true;}  
+        }
+      }
+    });
+    if (!unExists) {
+      Alert.alert('Username does not exist.');
+    } else if (!pwMatch) {
+      Alert.alert('Password does not match.');
+    } else {
+      this.state.currentUser.username = user.un;
+      this.state.currentUser.password = user.pw;
+      this.setState({loginPage: null});
+      Alert.alert('You have been logged in. Click on the profile icon at any time to view your account/settings.');
+    }
+  }
 
+  verifysignup: (() => void) = () => {
+    let unInUse = false;
+    let user = this.state.tempUser;
+    console.log(this.state.tempUser);
+    db.ref('/users').on('value', (snapshot) => {
+      let allUsers = snapshot.val();
+      //$FlowIssue[incompatible-use] flow assumes markersTemp[key] is incorrectly typed key accessing index of markersTemp[]
+      allUsers = Object.keys(allUsers).map((key) => allUsers[key]); //map object string identifiers assigned by Firebase to object info
+      for (let i = 0; i < allUsers.length; ++i) {
+        if (allUsers[i].username == user.un) {unInUse = true;}
+      }
+    });
+    if (user.un.length < 3) {
+      Alert.alert('Your username must be at least 3 characters.');
+    } else if (unInUse) {
+      Alert.alert('This username is already in use, please choose another.');
+    } else if (user.pw1 != user.pw2) {
+      Alert.alert('Passwords do not match!');
+    } else if (user.pw1.length < 8) {
+      Alert.alert('Your password must be at least 8 characters.');
+    } else if (!/\d/.test(user.pw1)) {
+      Alert.alert('Your password must contain a number.');
+    } else {
+      db.ref('/users').push({username: user.un, password: user.pw1});
+      this.state.currentUser.username = user.un;
+      this.state.currentUser.password = user.pw1;
+      this.setState({loginPage: null});
+      Alert.alert('You have signed up. Click on the profile icon at any time to view your account/settings.');
+    }
+  } 
 
 
   accountButtonHandler: (() => void) = () => {
-	  this.setState({
-		  loginPage: 	<View style={{height: FRAME_HEIGHT, width: FRAME_WIDTH, backgroundColor: 'white', position: 'absolute', zIndex: 2}}>
-
-		  				</View>
-	  });
+    if (this.state.currentUser.username) {
+      this.setState({
+        loginPage: 	<View style={{height: FRAME_HEIGHT, width: FRAME_WIDTH, backgroundColor: 'white', position: 'absolute', zIndex: 2}}>
+                    <TouchableOpacity onPress = {() => {this.setState({loginPage: null});}} style = {styles.POIexit_TO}>
+                                      <Image source = {require('./src/components/pointDisplay_x.png')} style = {styles.POIexit_generic}/>
+                                    </TouchableOpacity>
+                    <Text style={{paddingTop: 100}}> YOUR ACCOUNT </Text>
+                    </View>
+      });
+    } else {
+      this.setState({
+        loginPage: 	<View style={{height: FRAME_HEIGHT, width: FRAME_WIDTH, backgroundColor: 'white', position: 'absolute', zIndex: 2, display: 'flex', flexDirection: 'row'}}>
+                      <TouchableOpacity onPress = {() => {this.setState({loginPage: null});}} style = {[{paddingTop: 50}, styles.POIexit_TO]}>
+                                        <Image source = {require('./src/components/pointDisplay_x.png')} style = {styles.POIexit_generic}/>
+                                      </TouchableOpacity>
+                      <View style={{flexDirection: 'column'}}>
+                        <Text style={{paddingTop: 100}}> SIGN UP </Text>
+                        <TextInput
+                          placeholder = "Username"
+                          placeholderTextColor = {POS_COLOR}
+                          autoCapitalize = "none"
+                          onChangeText = {(txt) => {this.state.tempUser.un = txt;}}
+                        />
+                        <TextInput
+                          placeholder = "Password"
+                          placeholderTextColor = {POS_COLOR}
+                          autoCapitalize = "none"
+                          onChangeText = {(txt) => {this.state.tempUser.pw1 = txt;}}
+                        />
+                        <TextInput
+                          placeholder = "Confirm Password"
+                          placeholderTextColor = {POS_COLOR}
+                          autoCapitalize = "none"
+                          onChangeText = {(txt) => {this.state.tempUser.pw2 = txt;}}
+                        />
+                        <TouchableOpacity onPress={this.verifysignup}><Text>SIGN UP</Text></TouchableOpacity>
+                      </View>
+                      <View style={{flexDirection: 'column'}}>
+                        <Text style={{paddingTop: 100}}> LOG IN </Text>
+                        <TextInput
+                          placeholder = "Username"
+                          placeholderTextColor = {POS_COLOR}
+                          autoCapitalize = "none"
+                          onChangeText = {(txt) => {this.state.tempLogin.un = txt;}}
+                        />
+                        <TextInput
+                          placeholder = "Password"
+                          placeholderTextColor = {POS_COLOR}
+                          autoCapitalize = "none"
+                          onChangeText = {(txt) => {this.state.tempLogin.pw = txt;}}
+                        />
+                        <TouchableOpacity onPress={this.verifylogin}><Text>LOG IN</Text></TouchableOpacity>
+                      </View>
+                    </View>
+      });
+    }
   }
 
 
@@ -775,7 +887,7 @@ export default class App extends Component<{}, any> {
 
         {this.state.commentInterface}
         {this.state.fullImg}
-		{this.state.loginPage}
+		    {this.state.loginPage}
 
       </View>
     );

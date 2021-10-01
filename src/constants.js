@@ -78,7 +78,6 @@ export type PointOfInterest = {
 export type User = {
     username: string;
     password: string;
-    email: string;
 }
 
 export const uriToBase64: ((uripath: string) => Promise<empty>) = async uripath => {
